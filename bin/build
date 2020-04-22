@@ -1,0 +1,5 @@
+#!/bin/bash
+set -e
+
+mkdir -p dist
+go build -o dist/appland
