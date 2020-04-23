@@ -9,6 +9,7 @@ import (
 
 	"github.com/applandinc/appland-cli/internal/appland"
 	"github.com/applandinc/appland-cli/internal/config"
+	"github.com/applandinc/appland-cli/internal/metadata"
 	"github.com/spf13/cobra"
 )
 
@@ -32,6 +33,16 @@ func init() {
 					}
 
 					data, err := ioutil.ReadAll(file)
+					if err != nil {
+						fail(err)
+					}
+
+					gitPatch, err := metadata.GetGitMetadata(path)
+					if err != nil {
+						fail(err)
+					}
+
+					data, err = gitPatch.Apply(data)
 					if err != nil {
 						fail(err)
 					}
