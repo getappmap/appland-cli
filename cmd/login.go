@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/applandinc/appland-cli/internal/config"
 	"github.com/spf13/cobra"
@@ -22,19 +23,22 @@ func init() {
 
 				fmt.Printf("logging into %s\n\n", context.URL)
 				fmt.Printf("login: ")
-				_, err := reader.ReadString('\n')
+				login, err := reader.ReadString('\n')
 				if err != nil {
 					fail(err)
 				}
 
 				fmt.Printf("password: ")
-				_, err = terminal.ReadPassword(0)
+				password, err := terminal.ReadPassword(0)
 				if err != nil {
 					fail(err)
 				}
 				fmt.Printf("\n\nlogged in.\n")
 
-				context.APIKey = "TODO"
+				err = api.Login(strings.TrimSpace(login), strings.TrimSpace(string(password)))
+				if err != nil {
+					fail(err)
+				}
 			},
 		}
 	)

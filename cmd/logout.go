@@ -19,7 +19,10 @@ func init() {
 					fail(fmt.Errorf("not logged in to %s", context.URL))
 				}
 
-				context.APIKey = ""
+				err := api.DeleteAPIKey()
+				if err != nil {
+					fail(err)
+				}
 				fmt.Printf("logged out of %s\n", context.URL)
 			},
 		}
