@@ -7,15 +7,12 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/applandinc/appland-cli/internal/appland"
-	"github.com/applandinc/appland-cli/internal/config"
 	"github.com/applandinc/appland-cli/internal/metadata"
 	"github.com/spf13/cobra"
 )
 
 func init() {
 	var (
-		user         string
 		organization string
 
 		uploadCmd = &cobra.Command{
@@ -23,7 +20,6 @@ func init() {
 			Short: "Upload AppMap files to AppLand",
 			Args:  cobra.MinimumNArgs(1),
 			Run: func(cmd *cobra.Command, args []string) {
-				api := appland.MakeClient(config.GetCurrentContext())
 				batchID := ""
 
 				for _, path := range args {
@@ -48,11 +44,9 @@ func init() {
 					}
 
 					obj := struct {
-						User string `json:"user"`
 						Org  string `json:"org"`
 						Data string `json:"data"`
 					}{
-						User: user,
 						Org:  organization,
 						Data: string(data),
 					}
@@ -78,7 +72,6 @@ func init() {
 		}
 	)
 
-	uploadCmd.Flags().StringVarP(&user, "user", "u", "", "[soon to be deprecated] specify a user to own the AppMaps")
-	uploadCmd.Flags().StringVarP(&organization, "organization", "o", "", "override the owning organization")
+	uploadCmd.Flags().StringVarP(&organization, "org", "o", "", "override the owning organization")
 	rootCmd.AddCommand(uploadCmd)
 }
