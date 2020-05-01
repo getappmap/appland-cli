@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/applandinc/appland-cli/internal/appland"
+	"github.com/applandinc/appland-cli/internal/build"
 	"github.com/applandinc/appland-cli/internal/config"
 	"github.com/spf13/cobra"
 )
@@ -12,8 +13,9 @@ import (
 var (
 	api     *appland.Client
 	rootCmd = &cobra.Command{
-		Use:   "appland",
-		Short: "Manage AppLand resources",
+		Use:     "appland",
+		Short:   "Manage AppLand resources",
+		Version: build.Version,
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.Usage()
 		},
@@ -26,14 +28,14 @@ func fail(err error) {
 }
 
 func Execute() {
-	config.LoadConfig()
+	config.LoadCLIConfig()
 	api = appland.MakeClient(config.GetCurrentContext())
 
 	if err := rootCmd.Execute(); err != nil {
 		fail(err)
 	}
 
-	if err := config.WriteConfig(); err != nil {
+	if err := config.WriteCLIConfig(); err != nil {
 		fail(err)
 	}
 }

@@ -2,15 +2,54 @@ package metadata
 
 import (
 	"encoding/json"
-	jsonpatch "github.com/evanphx/json-patch"
+	"fmt"
+	"os"
+	"path"
+	"reflect"
 	"strings"
 
-	"reflect"
-
-	"fmt"
+	jsonpatch "github.com/evanphx/json-patch"
+	git "github.com/go-git/go-git/v5"
 )
 
 var errorOmitField = fmt.Errorf("omitted field")
+
+type RepositoryInfo struct {
+	Path       string
+	Repository *git.Repository
+}
+
+func GetRepository(filePath string) (*RepositoryInfo, error) {
+	currentPath := path.Clean(filePath)
+	for {
+		if currentPath == "." || currentPath == "/" {
+			break
+		}
+
+		file, err := os.Stat(currentPath)
+		if err != nil {
+			return nil, err
+		}
+
+		if file.IsDir() {
+			repo, err := git.PlainOpen(currentPath)
+			if err != nil && err != git.ErrRepositoryNotExists {
+				return nil, err
+			}
+
+			if repo != nil {
+				return &RepositoryInfo{
+					Path:       currentPath,
+					Repository: repo,
+				}, nil
+			}
+		}
+
+		currentPath = path.Dir(currentPath)
+	}
+
+	return nil, git.ErrRepositoryNotExists
+}
 
 func getFieldName(field reflect.StructField) (string, error) {
 	tag := field.Tag.Get("json")

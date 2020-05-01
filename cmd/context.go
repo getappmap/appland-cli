@@ -99,7 +99,7 @@ func init() {
 			Use:   "list",
 			Short: "list all AppLand contexts",
 			Run: func(cmd *cobra.Command, args []string) {
-				configuration := config.Get()
+				configuration := config.GetCLIConfig()
 				for name, context := range configuration.Contexts {
 					fmt.Printf("%s: %s\n", name, context.URL)
 				}

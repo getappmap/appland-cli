@@ -1,19 +1,12 @@
 package metadata
 
 import (
-	"os"
-	"path"
-
+	util "github.com/applandinc/appland-cli/internal/util"
 	jsonpatch "github.com/evanphx/json-patch"
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 )
-
-type RepositoryInfo struct {
-	Path       string
-	Repository *git.Repository
-}
 
 type GitMetadata struct {
 	Repository string   `json:"repository,omitempty"`
@@ -25,40 +18,8 @@ type GitMetadata struct {
 
 var metadataCache = map[string]*jsonpatch.Patch{}
 
-func getRepository(filePath string) (*RepositoryInfo, error) {
-	currentPath := path.Clean(filePath)
-	for {
-		if currentPath == "." || currentPath == "/" {
-			break
-		}
-
-		file, err := os.Stat(currentPath)
-		if err != nil {
-			return nil, err
-		}
-
-		if file.IsDir() {
-			repo, err := git.PlainOpen(currentPath)
-			if err != nil && err != git.ErrRepositoryNotExists {
-				return nil, err
-			}
-
-			if repo != nil {
-				return &RepositoryInfo{
-					Path:       currentPath,
-					Repository: repo,
-				}, nil
-			}
-		}
-
-		currentPath = path.Dir(currentPath)
-	}
-
-	return nil, git.ErrRepositoryNotExists
-}
-
 func GetGitMetadata(path string) (*jsonpatch.Patch, error) {
-	repositoryInfo, err := getRepository(path)
+	repositoryInfo, err := util.GetRepository(path)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +34,7 @@ func GetGitMetadata(path string) (*jsonpatch.Patch, error) {
 		return nil, err
 	}
 
-	patch, err := BuildPatch("replace", "/metadata/git", gitMetadata)
+	patch, err := util.BuildPatch("replace", "/metadata/git", gitMetadata)
 	if err != nil {
 		return nil, err
 	}
