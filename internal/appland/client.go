@@ -1,13 +1,13 @@
 package appland
 
 import (
+	"bytes"
 	"encoding/json"
-	"os"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"bytes"
 	"net/http"
+	"os"
 
 	"github.com/applandinc/appland-cli/internal/config"
 )
@@ -17,13 +17,24 @@ type Client struct {
 	httpClient *http.Client
 }
 
-type createScenarioAPIResponse struct {
-	uuid string
+type CreateMapSetResponse struct {
+	ID    uint32 `json:"id"`
+	AppID uint32 `json:"app_id"`
+}
+
+type createMapSetRequest struct {
+	Organization string   `json:"org"`
+	Application  string   `json:"app"`
+	Scenarios    []string `json:"scenarios"`
+}
+
+type createScenarioRequest struct {
+	Organization string `json:"org"`
+	Data         string `json:"data"`
 }
 
 type CreateScenarioResponse struct {
-	BatchID string
-	UUID    string
+	UUID string
 }
 
 func (client *Client) newAuthRequest(method, url string, body io.Reader) (*http.Request, error) {
@@ -81,9 +92,20 @@ func (client *Client) BuildUrl(paths ...interface{}) string {
 	return path
 }
 
-func (client *Client) CreateScenario(reader io.Reader, batchID string) (*CreateScenarioResponse, error) {
-	url := client.BuildUrl("api", "scenarios")
-	resp, err := client.post(url, reader)
+func (client *Client) CreateMapSet(app, org string, scenarios []string) (*CreateMapSetResponse, error) {
+	requestObj := &createMapSetRequest{
+		Organization: org,
+		Application:  app,
+		Scenarios:    scenarios,
+	}
+
+	data, err := json.Marshal(requestObj)
+	if err != nil {
+		return nil, err
+	}
+
+	url := client.BuildUrl("api", "mapsets")
+	resp, err := client.post(url, bytes.NewReader(data))
 	if err != nil {
 		return nil, err
 	}
@@ -97,24 +119,55 @@ func (client *Client) CreateScenario(reader io.Reader, batchID string) (*CreateS
 		return nil, fmt.Errorf("got status %d:\n%s", resp.StatusCode, string(body))
 	}
 
-	jsonResponse := &createScenarioAPIResponse{}
-	if err := json.Unmarshal(body, jsonResponse); err != nil {
+	responseObj := &CreateMapSetResponse{}
+	if err = json.Unmarshal(body, responseObj); err != nil {
 		return nil, err
 	}
 
-	returnedBatchID := batchID
-	if returnedBatchID == "" {
-		returnedBatchID = resp.Header.Get("AppLand-Scenario-Batch")
+	return responseObj, nil
+}
+
+func (client *Client) CreateScenario(org string, scenarioData io.Reader) (*CreateScenarioResponse, error) {
+	scenarioBytes, err := ioutil.ReadAll(scenarioData)
+	if err != nil {
+		return nil, err
 	}
 
-	return &CreateScenarioResponse{
-		BatchID: returnedBatchID,
-		UUID:    jsonResponse.uuid,
-	}, nil
+	requestObj := &createScenarioRequest{
+		Organization: org,
+		Data:         string(scenarioBytes),
+	}
+
+	data, err := json.Marshal(requestObj)
+	if err != nil {
+		return nil, err
+	}
+
+	url := client.BuildUrl("api", "scenarios")
+	resp, err := client.post(url, bytes.NewBuffer(data))
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusCreated {
+		return nil, fmt.Errorf("got status %d:\n%s", resp.StatusCode, string(body))
+	}
+
+	responseObj := &CreateScenarioResponse{}
+	if err := json.Unmarshal(body, responseObj); err != nil {
+		return nil, err
+	}
+
+	return responseObj, nil
 }
 
 func (client *Client) Login(login string, password string) error {
-	url := client.BuildUrl("api", "api_key")
+	url := client.BuildUrl("api", "api_keys")
 
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -168,7 +221,7 @@ func (client *Client) Login(login string, password string) error {
 }
 
 func (client *Client) DeleteAPIKey() error {
-	url := client.BuildUrl("api", "api_key")
+	url := client.BuildUrl("api", "api_keys")
 	resp, err := client.delete(url, nil)
 	if err != nil {
 		return err

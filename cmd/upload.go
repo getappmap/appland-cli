@@ -2,12 +2,13 @@ package cmd
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
 
+	"github.com/applandinc/appland-cli/internal/config"
 	"github.com/applandinc/appland-cli/internal/metadata"
+	progressbar "github.com/schollz/progressbar/v3"
 	"github.com/spf13/cobra"
 )
 
@@ -20,9 +21,15 @@ func init() {
 			Short: "Upload AppMap files to AppLand",
 			Args:  cobra.MinimumNArgs(1),
 			Run: func(cmd *cobra.Command, args []string) {
-				batchID := ""
+				appmapConfig, err := config.LoadAppmapConfig("", args[0])
+				if err != nil {
+					fail(err)
+				}
 
-				for _, path := range args {
+				scenarios := make([]string, len(args))
+				progressBar := progressbar.New(len(args) + 1)
+
+				for i, path := range args {
 					file, err := os.Open(path)
 					if err != nil {
 						fail(err)
@@ -43,31 +50,24 @@ func init() {
 						fail(err)
 					}
 
-					obj := struct {
-						Org  string `json:"org"`
-						Data string `json:"data"`
-					}{
-						Org:  organization,
-						Data: string(data),
-					}
-
-					jsonData, err := json.Marshal(&obj)
+					resp, err := api.CreateScenario(organization, bytes.NewReader(data))
 					if err != nil {
 						fail(err)
 					}
 
-					resp, err := api.CreateScenario(bytes.NewReader(jsonData), batchID)
-					if err != nil {
-						fail(err)
-					}
-
-					if batchID == "" {
-						batchID = resp.BatchID
-					}
+					scenarios[i] = resp.UUID
+					progressBar.Add(1)
 				}
 
-				fmt.Printf("uploaded %d scenarios\n", len(args))
-				fmt.Printf("view the batch: %s\n", api.BuildUrl("scenario_batches", batchID))
+				mapSet, err := api.CreateMapSet(appmapConfig.Application, organization, scenarios)
+				if err != nil {
+					fail(err)
+				}
+
+				progressBar.Finish()
+
+				fmt.Printf("\n\nSuccess! %s has been updated with %d scenarios.\n", appmapConfig.Application, len(args))
+				fmt.Println(api.BuildUrl("applications", fmt.Sprintf("%d?mapset=%d", mapSet.AppID, mapSet.ID)))
 			},
 		}
 	)

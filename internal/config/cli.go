@@ -2,10 +2,10 @@ package config
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 
+	"github.com/spf13/afero"
 	"gopkg.in/yaml.v2"
 )
 
@@ -43,8 +43,8 @@ func makeDefault() *Config {
 	}
 }
 
-func loadConfig(path string) bool {
-	info, err := os.Stat(path)
+func loadCLIConfig(path string) bool {
+	info, err := getFS().Stat(path)
 	if os.IsNotExist(err) {
 		return false
 	} else if err != nil {
@@ -57,9 +57,9 @@ func loadConfig(path string) bool {
 		return false
 	}
 
-	data, err := ioutil.ReadFile(path)
+	data, err := afero.ReadFile(getFS(), path)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "warn: %s\n", err)
+		fmt.Fprintf(os.Stderr, "warn: %s\v", err)
 		return false
 	}
 
@@ -80,9 +80,9 @@ func loadConfig(path string) bool {
 	return true
 }
 
-func LoadConfig() {
+func LoadCLIConfig() {
 	envPath := os.Getenv("APPLAND_CONFIG")
-	if envPath != "" && loadConfig(envPath) {
+	if envPath != "" && loadCLIConfig(envPath) {
 		return
 	}
 
@@ -90,7 +90,7 @@ func LoadConfig() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warn: %s\n", err)
 	} else {
-		if loadConfig(path.Join(currentDir, applandFilename)) {
+		if loadCLIConfig(path.Join(currentDir, applandFilename)) {
 			return
 		}
 	}
@@ -99,7 +99,7 @@ func LoadConfig() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warn: %s\n", err)
 	} else {
-		if loadConfig(path.Join(homeDir, applandFilename)) {
+		if loadCLIConfig(path.Join(homeDir, applandFilename)) {
 			return
 		}
 	}
@@ -108,7 +108,7 @@ func LoadConfig() {
 	configPath = path.Join(homeDir, applandFilename)
 }
 
-func WriteConfig() error {
+func WriteCLIConfig() error {
 	if configPath == "" {
 		return fmt.Errorf("no config path is set")
 	}
@@ -118,7 +118,7 @@ func WriteConfig() error {
 		return err
 	}
 
-	return ioutil.WriteFile(configPath, data, 0600)
+	return afero.WriteFile(getFS(), configPath, data, 0600)
 }
 
 func GetAPIKey() string {
@@ -183,6 +183,6 @@ func MakeContext(name string, url string) error {
 	return nil
 }
 
-func Get() *Config {
+func GetCLIConfig() *Config {
 	return config
 }
