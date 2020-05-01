@@ -1,17 +1,21 @@
 language: go
 os: linux
-script: ./bin/test
+script:
+  - ./bin/test
+  - curl -sfL https://git.io/goreleaser | sh -s -- check
 
 matrix:
   include:
   - go: 1.14
 
 deploy:
-  provider: releases
-  api_key:
-    secure: n/E3BRqB2E6xbYlYNOmWDfjRsvZ4n6bOtbrknqvUTFXN/fgm+TxfFiNJ1Bbtvuulh9e6UPZ9imHcP5vWhJNZxBf2tR0P90bR8xiMhG37y+678FCfME7hmOY9eAG7j05DBsvNt1RQ93BSumXV2UoYRzRBr4dvVUl+DvixrOQ/r0Ri0l6sp/uhidmfCuErMB1YCK60YMVBTpT32Liny9ZC20xQ90YAZANpJecDqJcwZa3CGDGOlVbj1f9O0k4wRdGG8izAUwABjxOcGrhqOEqMAWtcqA++5aydmeu85U+lSHio2bT34Vj4xjmxnsBGkIslZuwIbsVT0ALreLZS5zqMA7wSFDppdTU/WaDHPJb0yaZdPFGzfYLkhCWmydfM/SO4ld63rjwPH8H563kLRvaph2QCEM8K4WB0GeJDQ7o3SZOZ52z0UR2XlHICOae7QDUMoP4OGbG+CfebwI3H+ANopefSsHjj/huXqUrbiUji1721TjJY52gZXWQaT4sthvRc/Bk8D97ZQpIKIWTDR70qO9yVJTEPawjMkGONJxxemdtTzvN3shiZYD8p8Exs2jRs+i9AATjyvMwnKa+sF4nu3+rDsi2EzJllvkYtF1F0in1s8eBm1Y559AjZ/wOEeZqAp9VjSYxD1z2jr5G/xbbfmU2KyNYBCYc5+y18k9l0Arg=
+  provider: script
+  script: curl -sL https://git.io/goreleaser | bash
+  skip_cleanup: true
+  github_token: $GITHUB_TOKEN
   file:
   - dist/*.tar.gz
   - dist/checksums.txt
   on:
     tags: true
+    condition: $TRAVIS_OS_NAME = linux
