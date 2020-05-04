@@ -1,6 +1,8 @@
 package metadata
 
 import (
+	"fmt"
+
 	util "github.com/applandinc/appland-cli/internal/util"
 	jsonpatch "github.com/evanphx/json-patch"
 	git "github.com/go-git/go-git/v5"
@@ -48,7 +50,7 @@ func collectGitMetadata(repo *git.Repository) (*GitMetadata, error) {
 	metadata := &GitMetadata{}
 	head, err := repo.Head()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve HEAD: %w", err)
 	}
 	metadata.Commit = head.Hash().String()
 
@@ -64,9 +66,10 @@ func collectGitMetadata(repo *git.Repository) (*GitMetadata, error) {
 			metadata.Repository = remoteURLs[0]
 		}
 	}
+
 	tags, err := repo.Tags()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read tags from repository: %w", err)
 	}
 
 	err = tags.ForEach(func(ref *plumbing.Reference) error {
@@ -75,23 +78,23 @@ func collectGitMetadata(repo *git.Repository) (*GitMetadata, error) {
 		if ref.Target().IsTag() {
 			tag, err := repo.TagObject(ref.Hash())
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to resolve annotated tag (ref %s): %w", ref.Hash(), err)
 			}
 
 			commit, err = tag.Commit()
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to get commit from annotated tag (ref %s): %w", ref.Hash(), err)
 			}
 		} else {
 			tagObj, err := repo.Object(plumbing.TagObject, ref.Hash())
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to resolve lightweight tag object (ref %s): %w", ref.Hash(), err)
 			}
 
 			if tag, ok := tagObj.(*object.Tag); ok {
 				commit, err = tag.Commit()
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to get commit from lightweight tag (ref %s): %w", ref.Hash(), err)
 				}
 			}
 		}

@@ -27,6 +27,10 @@ func fail(err error) {
 	os.Exit(1)
 }
 
+func warn(err error) {
+	fmt.Fprintf(os.Stderr, "warn: %v\n", err)
+}
+
 func Execute() {
 	config.LoadCLIConfig()
 	api = appland.MakeClient(config.GetCurrentContext())

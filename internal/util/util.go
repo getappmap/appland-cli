@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"strings"
 
@@ -19,8 +20,13 @@ type RepositoryInfo struct {
 	Repository *git.Repository
 }
 
-func GetRepository(filePath string) (*RepositoryInfo, error) {
-	currentPath := path.Clean(filePath)
+func GetRepository(pathWithinRepository string) (*RepositoryInfo, error) {
+	absolutePath, err := filepath.Abs(pathWithinRepository)
+	if err != nil {
+		return nil, err
+	}
+
+	currentPath := absolutePath
 	for {
 		if currentPath == "." || currentPath == "/" {
 			break

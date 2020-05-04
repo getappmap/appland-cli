@@ -42,12 +42,12 @@ func init() {
 
 					gitPatch, err := metadata.GetGitMetadata(path)
 					if err != nil {
-						fail(err)
-					}
-
-					data, err = gitPatch.Apply(data)
-					if err != nil {
-						fail(err)
+						warn(err)
+					} else {
+						data, err = gitPatch.Apply(data)
+						if err != nil {
+							fail(err)
+						}
 					}
 
 					resp, err := api.CreateScenario(organization, bytes.NewReader(data))
