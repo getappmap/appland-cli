@@ -74,29 +74,17 @@ func collectGitMetadata(repo *git.Repository) (*GitMetadata, error) {
 
 	err = tags.ForEach(func(ref *plumbing.Reference) error {
 		var commit *object.Commit
-
-		if ref.Target().IsTag() {
-			tag, err := repo.TagObject(ref.Hash())
+		obj, err := repo.TagObject(ref.Hash())
+		switch err {
+		case nil:
+			commit, err = obj.Commit()
 			if err != nil {
-				return fmt.Errorf("failed to resolve annotated tag (ref %s): %w", ref.Hash(), err)
+				return fmt.Errorf("failed to get commit from tag (ref %s): %w", ref.Hash(), err)
 			}
-
-			commit, err = tag.Commit()
-			if err != nil {
-				return fmt.Errorf("failed to get commit from annotated tag (ref %s): %w", ref.Hash(), err)
-			}
-		} else {
-			tagObj, err := repo.Object(plumbing.TagObject, ref.Hash())
-			if err != nil {
-				return fmt.Errorf("failed to resolve lightweight tag object (ref %s): %w", ref.Hash(), err)
-			}
-
-			if tag, ok := tagObj.(*object.Tag); ok {
-				commit, err = tag.Commit()
-				if err != nil {
-					return fmt.Errorf("failed to get commit from lightweight tag (ref %s): %w", ref.Hash(), err)
-				}
-			}
+		case plumbing.ErrObjectNotFound:
+			return nil
+		default:
+			return err
 		}
 
 		if commit.Hash.String() == head.Hash().String() {
