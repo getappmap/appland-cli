@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Changed
 - Git tag resolution should be more robust under strange conditions
+- Provide more information on positional arguments
 
 ## [0.0.2] - 2014-05-31
 ### Added
