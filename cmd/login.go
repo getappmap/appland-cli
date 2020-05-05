@@ -19,9 +19,12 @@ func init() {
 			Args:  cobra.MaximumNArgs(1),
 			Run: func(cmd *cobra.Command, args []string) {
 				reader := bufio.NewReader(os.Stdin)
-				context := config.GetCurrentContext()
+				context, err := config.GetCurrentContext()
+				if err != nil {
+					fail(err)
+				}
 
-				fmt.Printf("logging into %s\n\n", context.URL)
+				fmt.Printf("logging into %s\n\n", context.GetURL())
 				fmt.Printf("login: ")
 				login, err := reader.ReadString('\n')
 				if err != nil {

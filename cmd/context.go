@@ -40,8 +40,12 @@ func init() {
 			Short: "Show the current AppLand context",
 			Run: func(cmd *cobra.Command, args []string) {
 				name := config.GetCurrentContextName()
-				context := config.GetCurrentContext()
-				fmt.Printf("%s: %s\n", name, context.URL)
+				context, err := config.GetCurrentContext()
+				if err != nil {
+					fail(fmt.Errorf("no context selected"))
+				}
+
+				fmt.Printf("%s: %s\n", name, context.GetURL())
 			},
 		}
 
@@ -59,18 +63,17 @@ Available variables:
 				key := args[0]
 				value := args[1]
 				var context *config.Context
+				var err error
+
 				if contextName != "" {
-					context = config.GetContext(contextName)
-					if context == nil {
-						fail(fmt.Errorf("context '%s' not found", contextName))
-					}
+					context, err = config.GetContext(contextName)
 				} else {
-					context = config.GetCurrentContext()
+					context, err = config.GetCurrentContext()
 					contextName = config.GetCurrentContextName()
 				}
 
-				if context == nil {
-					fail(fmt.Errorf("no context could be resolved"))
+				if err != nil {
+					fail(err)
 				}
 
 				switch key {
@@ -109,7 +112,7 @@ Available variables:
 			Run: func(cmd *cobra.Command, args []string) {
 				configuration := config.GetCLIConfig()
 				for name, context := range configuration.Contexts {
-					fmt.Printf("%s: %s\n", name, context.URL)
+					fmt.Printf("%s: %s\n", name, context.GetURL())
 				}
 			},
 		}

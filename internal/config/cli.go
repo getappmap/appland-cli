@@ -126,31 +126,32 @@ func GetAPIKey() string {
 		return ""
 	}
 
-	return currentContext.APIKey
+	return ResolveValue(currentContext.APIKey)
 }
 
 func SetCurrentContext(name string) error {
-	if GetContext(name) == nil {
-		return fmt.Errorf("no context named '%s' exists", name)
+	if _, err := GetContext(name); err != nil {
+		return err
 	}
 
 	config.CurrentContext = name
 	return nil
 }
 
-func SetContextUrl(url string) {
-	currentContext.URL = url
+func GetContext(name string) (*Context, error) {
+	if name == "" {
+		return nil, fmt.Errorf("cannot retrieve unnamed context")
+	}
+
+	if context, ok := config.Contexts[name]; ok {
+		return context, nil
+	}
+
+	return nil, fmt.Errorf("context '%s' does not exist", name)
 }
 
-func SetContextAPIKey(apiKey string) {
-	currentContext.APIKey = apiKey
-}
+func GetCurrentContext() (*Context, error) {
 
-func GetContext(name string) *Context {
-	return config.Contexts[name]
-}
-
-func GetCurrentContext() *Context {
 	return GetContext(config.CurrentContext)
 }
 
@@ -172,7 +173,7 @@ func RenameContext(old string, new string) {
 }
 
 func MakeContext(name string, url string) error {
-	if GetContext(name) != nil {
+	if existingContext, _ := GetContext(name); existingContext != nil {
 		return fmt.Errorf("a context named '%s' already exists", name)
 	}
 
@@ -185,4 +186,28 @@ func MakeContext(name string, url string) error {
 
 func GetCLIConfig() *Config {
 	return config
+}
+
+func (context *Context) GetAPIKey() string {
+	return ResolveValue(context.APIKey)
+}
+
+func (context *Context) GetURL() string {
+	return ResolveValue(context.URL)
+}
+
+func (context *Context) SetAPIKey(apiKey string) {
+	if IsEnvironmentVariable(context.APIKey) {
+		return
+	}
+
+	context.APIKey = apiKey
+}
+
+func (context *Context) SetURL(url string) {
+	if IsEnvironmentVariable(context.URL) {
+		return
+	}
+
+	context.URL = url
 }

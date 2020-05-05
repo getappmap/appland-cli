@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Git tag resolution should be more robust under strange conditions
 - Provide more information on positional arguments
+- Values preceded by `$` will be resolved as environment variables when reading
+  the `.appland.yml` configuration file. For example:
+  ```yml
+  current_context: default
+  contexts:
+    default:
+      url: https://app.land
+      api_key: $APPLAND_API_KEY
+  ```
 
 ## [0.0.2] - 2014-05-31
 ### Added

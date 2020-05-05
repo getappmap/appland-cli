@@ -33,7 +33,12 @@ func warn(err error) {
 
 func Execute() {
 	config.LoadCLIConfig()
-	api = appland.MakeClient(config.GetCurrentContext())
+	context, err := config.GetCurrentContext()
+	if err != nil {
+		fail(err)
+	}
+
+	api = appland.MakeClient(context)
 
 	if err := rootCmd.Execute(); err != nil {
 		fail(err)

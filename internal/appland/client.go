@@ -43,7 +43,7 @@ func (client *Client) newAuthRequest(method, url string, body io.Reader) (*http.
 		return nil, err
 	}
 
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", client.context.APIKey))
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", client.context.GetAPIKey()))
 	req.Header.Add("Content-Type", "application/json")
 
 	return req, nil
@@ -85,7 +85,7 @@ func MakeClient(context *config.Context) *Client {
 
 func (client *Client) BuildUrl(paths ...interface{}) string {
 	numPaths := len(paths)
-	path := client.context.URL
+	path := client.context.GetURL()
 	for i := 0; i < numPaths; i++ {
 		path = path + fmt.Sprintf("/%v", paths[i])
 	}
@@ -216,7 +216,7 @@ func (client *Client) Login(login string, password string) error {
 		return err
 	}
 
-	client.context.APIKey = responseFormat.APIKey
+	client.context.SetAPIKey(responseFormat.APIKey)
 	return nil
 }
 
@@ -236,6 +236,6 @@ func (client *Client) DeleteAPIKey() error {
 		return fmt.Errorf(string(msg))
 	}
 
-	client.context.APIKey = ""
+	client.context.SetAPIKey("")
 	return nil
 }

@@ -13,17 +13,20 @@ func init() {
 			Use:   "logout",
 			Short: "Log out of AppLand",
 			Run: func(cmd *cobra.Command, args []string) {
-				context := config.GetCurrentContext()
-
-				if context.APIKey == "" {
-					fail(fmt.Errorf("not logged in to %s", context.URL))
-				}
-
-				err := api.DeleteAPIKey()
+				context, err := config.GetCurrentContext()
 				if err != nil {
 					fail(err)
 				}
-				fmt.Printf("logged out of %s\n", context.URL)
+
+				if context.GetAPIKey() == "" {
+					fail(fmt.Errorf("not logged in to %s", context.GetURL()))
+				}
+
+				err = api.DeleteAPIKey()
+				if err != nil {
+					fail(err)
+				}
+				fmt.Printf("logged out of %s\n", context.GetURL())
 			},
 		}
 	)

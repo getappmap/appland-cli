@@ -55,10 +55,13 @@ func TestLoadCLIConfig(t *testing.T) {
 
 	require.True(t, loadCLIConfig(".appland"))
 
+	context, err := GetCurrentContext()
+	require.Nil(t, err)
+
 	assert := assert.New(t)
 	assert.Equal(GetCurrentContextName(), "test")
-	assert.Equal(GetCurrentContext().APIKey, "MY_API_KEY")
-	assert.Equal(GetCurrentContext().URL, "http://localhost:3000")
+	assert.Equal(context.GetAPIKey(), "MY_API_KEY")
+	assert.Equal(context.GetURL(), "http://localhost:3000")
 }
 
 func TestMakeContext(t *testing.T) {
@@ -69,5 +72,9 @@ func TestMakeContext(t *testing.T) {
 	require.True(t, loadCLIConfig(".appland"))
 	require.Nil(t, MakeContext("new", "hostname.com"))
 	require.Nil(t, SetCurrentContext("new"))
-	assert.Equal(t, GetCurrentContext().URL, "hostname.com")
+
+	context, err := GetCurrentContext()
+	require.Nil(t, err)
+
+	assert.Equal(t, context.GetURL(), "hostname.com")
 }
