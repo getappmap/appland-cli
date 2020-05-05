@@ -1,7 +1,37 @@
 # appland-cli
 
 ## Usage
-### authentication
+### Quickstart
+```
+$ appland login
+logging into https://app.land
+
+login: username
+password:
+
+logged in.
+
+$ appland upload --org myorg tmp/*.json
+ 100% |████████████████████████████████████████|  [0s:0s]
+
+Success! Application has been updated with 1 scenarios.
+https://app.land/applications/5?mapset=13
+```
+
+### Running in CI/CD
+An API key can be provided to the `appland` CLI by specifying an environment
+variable in the `.appland.yml` file. Configure your CI/CD tool to provide the
+specified environment variable at runtime.
+```yml
+current_context: default
+contexts:
+  default:
+    url: https://app.land
+    api_key: $APPLAND_API_KEY
+```
+
+### Commands
+#### authentication
 Authentication and API key management.
 
 `appland login`  
@@ -10,7 +40,7 @@ This will prompt you for a login and password. Your password will not be echoed.
 `appland logout`  
 Logs the current user out of AppLand and revokes the API key in use.
 
-### contexts
+#### contexts
 AppLand has the ability to support a number of configuration contexts. In most
 cases, you won't need additional contexts. Upon first run, a `default` context
 is created, pointing to [app.land](https://app.land). Subcommands which issue
@@ -30,7 +60,7 @@ Show all available contexts.
 Select a context as the current context. This is set to a default context upon
 first run.
 
-### upload
+#### upload
 Upload a mapset of scenario files.
 
 `upload --org <organization> [files]`  
