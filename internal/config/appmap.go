@@ -51,7 +51,7 @@ func LoadAppmapConfig(overridePath string, fallbackPath string) (*AppMapConfig, 
 		return loadAppmapConfig(appmapPath)
 	}
 
-	if repoInfo, err := util.GetRepository(currentDir); err != nil {
+	if repoInfo, err := util.GetRepository(currentDir); err == nil {
 		appmapPath = path.Join(repoInfo.Path, appmapYaml)
 		if ok, _ := afero.Exists(getFS(), appmapPath); ok {
 			return loadAppmapConfig(appmapPath)
