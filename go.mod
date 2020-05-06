@@ -9,6 +9,7 @@ require (
 	github.com/go-git/go-billy/v5 v5.0.0
 	github.com/go-git/go-git v4.7.0+incompatible
 	github.com/go-git/go-git/v5 v5.0.0
+	github.com/pkg/browser v0.0.0-20180916011732-0a3d74bf9ce4
 	github.com/schollz/progressbar/v3 v3.2.3
 	github.com/spf13/afero v1.1.2
 	github.com/spf13/cobra v1.0.0

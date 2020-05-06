@@ -8,13 +8,15 @@ import (
 
 	"github.com/applandinc/appland-cli/internal/config"
 	"github.com/applandinc/appland-cli/internal/metadata"
+	"github.com/pkg/browser"
 	progressbar "github.com/schollz/progressbar/v3"
 	"github.com/spf13/cobra"
 )
 
 func init() {
 	var (
-		organization string
+		organization    string
+		dontOpenBrowser bool
 
 		uploadCmd = &cobra.Command{
 			Use:   "upload [files]",
@@ -70,11 +72,18 @@ func init() {
 				progressBar.Finish()
 
 				fmt.Printf("\n\nSuccess! %s has been updated with %d scenarios.\n", appmapConfig.Application, len(args))
-				fmt.Println(api.BuildUrl("applications", fmt.Sprintf("%d?mapset=%d", mapSet.AppID, mapSet.ID)))
+
+				url := api.BuildUrl("applications", fmt.Sprintf("%d?mapset=%d", mapSet.AppID, mapSet.ID))
+				if dontOpenBrowser {
+					fmt.Println(url)
+				} else {
+					browser.OpenURL(url)
+				}
 			},
 		}
 	)
 
-	uploadCmd.Flags().StringVarP(&organization, "org", "o", "", "override the owning organization")
+	uploadCmd.Flags().BoolVar(&dontOpenBrowser, "no-open", false, "Do not open the browser after a successful upload")
+	uploadCmd.Flags().StringVarP(&organization, "org", "o", "", "Override the owning organization")
 	rootCmd.AddCommand(uploadCmd)
 }
