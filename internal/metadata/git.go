@@ -79,10 +79,13 @@ func collectGitMetadata(repo *git.Repository) (*GitMetadata, error) {
 		case nil:
 			commit, err = obj.Commit()
 			if err != nil {
-				return fmt.Errorf("failed to get commit from tag (ref %s): %w", ref.Hash(), err)
+				return fmt.Errorf("failed to get commit from tag (tag %s): %w", ref.Hash(), err)
 			}
 		case plumbing.ErrObjectNotFound:
-			return nil
+			commit, err = repo.CommitObject(ref.Hash())
+			if err != nil {
+				return fmt.Errorf("failed to get commit from ref (ref %s): %w", ref.Hash(), err)
+			}
 		default:
 			return err
 		}

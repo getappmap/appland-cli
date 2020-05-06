@@ -6,6 +6,7 @@ require (
 	github.com/cheggaaa/pb v2.0.7+incompatible
 	github.com/evanphx/json-patch v4.5.0+incompatible
 	github.com/go-delve/delve v1.4.0 // indirect
+	github.com/go-git/go-billy/v5 v5.0.0
 	github.com/go-git/go-git v4.7.0+incompatible
 	github.com/go-git/go-git/v5 v5.0.0
 	github.com/schollz/progressbar/v3 v3.2.3
