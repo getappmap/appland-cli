@@ -43,7 +43,9 @@ func init() {
 
 					gitPatch, err := metadata.GetGitMetadata(path)
 					if err != nil {
-						warn(err)
+						progressBar.Clear()
+						warn(fmt.Errorf("could not collect git metadata (%w)", err))
+						progressBar.RenderBlank()
 					} else {
 						data, err = gitPatch.Apply(data)
 						if err != nil {
