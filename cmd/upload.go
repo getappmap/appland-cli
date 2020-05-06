@@ -28,6 +28,7 @@ func init() {
 
 				scenarios := make([]string, len(args))
 				progressBar := progressbar.New(len(args) + 1)
+				progressBar.RenderBlank()
 
 				for i, path := range args {
 					file, err := os.Open(path)
