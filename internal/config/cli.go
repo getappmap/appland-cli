@@ -189,10 +189,18 @@ func GetCLIConfig() *Config {
 }
 
 func (context *Context) GetAPIKey() string {
+	if apiKey := os.Getenv("APPLAND_API_KEY"); apiKey != "" {
+		return apiKey
+	}
+
 	return ResolveValue(context.APIKey)
 }
 
 func (context *Context) GetURL() string {
+	if url := os.Getenv("APPLAND_URL"); url != "" {
+		return url
+	}
+
 	return ResolveValue(context.URL)
 }
 
