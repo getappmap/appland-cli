@@ -12,6 +12,7 @@ import (
 type Config struct {
 	CurrentContext string              `yaml:"current_context"`
 	Contexts       map[string]*Context `yaml:"contexts"`
+	dirty          bool
 }
 
 type Context struct {
@@ -41,6 +42,14 @@ func makeDefault() *Config {
 			defaultContextName: &defaultContext,
 		},
 	}
+}
+
+func makeDirty() {
+	if config == nil {
+		return
+	}
+
+	config.dirty = true
 }
 
 func loadCLIConfig(path string) bool {
@@ -109,6 +118,14 @@ func LoadCLIConfig() {
 }
 
 func WriteCLIConfig() error {
+	if config == nil {
+		return fmt.Errorf("no config present")
+	}
+
+	if !config.dirty {
+		return nil
+	}
+
 	if configPath == "" {
 		return fmt.Errorf("no config path is set")
 	}
@@ -135,6 +152,9 @@ func SetCurrentContext(name string) error {
 	}
 
 	config.CurrentContext = name
+
+	makeDirty()
+
 	return nil
 }
 
@@ -151,7 +171,6 @@ func GetContext(name string) (*Context, error) {
 }
 
 func GetCurrentContext() (*Context, error) {
-
 	return GetContext(config.CurrentContext)
 }
 
@@ -170,6 +189,8 @@ func RenameContext(old string, new string) {
 	if config.CurrentContext == old {
 		config.CurrentContext = new
 	}
+
+	makeDirty()
 }
 
 func MakeContext(name string, url string) error {
@@ -180,6 +201,8 @@ func MakeContext(name string, url string) error {
 	config.Contexts[name] = &Context{
 		URL: url,
 	}
+
+	makeDirty()
 
 	return nil
 }
@@ -210,6 +233,8 @@ func (context *Context) SetAPIKey(apiKey string) {
 	}
 
 	context.APIKey = apiKey
+
+	makeDirty()
 }
 
 func (context *Context) SetURL(url string) {
@@ -218,4 +243,39 @@ func (context *Context) SetURL(url string) {
 	}
 
 	context.URL = url
+
+	makeDirty()
+}
+
+func (context *Context) GetName() (string, error) {
+	if config == nil {
+		return "", fmt.Errorf("no config present")
+	}
+
+	for name, c := range config.Contexts {
+		if c == context {
+			return name, nil
+		}
+	}
+
+	return "", fmt.Errorf("context not found")
+}
+
+func (context *Context) SetVariable(key, value string) error {
+	switch key {
+	case "url":
+		context.SetURL(value)
+	case "api_key":
+		context.SetAPIKey(key)
+	case "name":
+		name, err := context.GetName()
+		if err != nil {
+			return err
+		}
+		RenameContext(name, value)
+	default:
+		return fmt.Errorf("unknown key '%s'", key)
+	}
+
+	return nil
 }
