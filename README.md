@@ -1,4 +1,5 @@
 # appland-cli
+[![Build Status](https://travis-ci.com/applandinc/appland.svg?token=oNqy5hPadVE4PUAF9ZWk&branch=master)](https://travis-ci.com/applandinc/appland)
 
 ## Usage
 ### Quickstart
