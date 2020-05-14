@@ -69,22 +69,14 @@ Available variables:
 					context, err = config.GetContext(contextName)
 				} else {
 					context, err = config.GetCurrentContext()
-					contextName = config.GetCurrentContextName()
 				}
 
 				if err != nil {
 					fail(err)
 				}
 
-				switch key {
-				case "url":
-					context.URL = value
-				case "api_key":
-					context.APIKey = value
-				case "name":
-					config.RenameContext(contextName, value)
-				default:
-					fail(fmt.Errorf("unknown key '%s'", key))
+				if err := context.SetVariable(key, value); err != nil {
+					fail(err)
 				}
 
 				fmt.Printf("'%s' set for '%s'\n", key, contextName)

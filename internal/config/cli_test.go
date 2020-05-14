@@ -29,6 +29,7 @@ func TestWriteCLIConfig(t *testing.T) {
 				APIKey: "MY_API_KEY",
 			},
 		},
+		dirty: true,
 	}
 
 	err := WriteCLIConfig()
@@ -77,4 +78,29 @@ func TestMakeContext(t *testing.T) {
 	require.Nil(t, err)
 
 	assert.Equal(t, context.GetURL(), "hostname.com")
+}
+
+func TestDontWriteWithoutDirtyFlag(t *testing.T) {
+	setFileSystem(afero.NewMemMapFs())
+	LoadCLIConfig()
+
+	assert.Nil(t, WriteCLIConfig())
+
+	exists, _ := afero.Exists(fs, configPath)
+	assert.False(t, exists)
+}
+
+func TestWriteWithDirtyFlag(t *testing.T) {
+	setFileSystem(afero.NewMemMapFs())
+	LoadCLIConfig()
+
+	context, err := GetCurrentContext()
+	require.Nil(t, err)
+
+	context.SetURL("http://example")
+
+	assert.Nil(t, WriteCLIConfig())
+
+	exists, _ := afero.Exists(fs, configPath)
+	assert.True(t, exists)
 }
