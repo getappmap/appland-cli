@@ -19,16 +19,12 @@ https://app.land/applications/5?mapset=13
 ```
 
 ### Running in CI/CD
-An API key can be provided to the `appland` CLI by specifying an environment
-variable in the `.appland.yml` file. Configure your CI/CD tool to provide the
-specified environment variable at runtime.
-```yml
-current_context: default
-contexts:
-  default:
-    url: https://app.land
-    api_key: $APPLAND_API_KEY
-```
+Configure your CI/CD tool to provide the following environment variables at
+runtime. By providing these environment variables, `appland` can authenticate
+without any persistent configuration.
+- `APPLAND_API_KEY`: Generate a new API key from your [account page](https://app.land/user) to populate this value.
+- `APPLAND_URL`: Typically this will always be set to `https://app.land`
+
 
 ### Commands
 #### authentication
