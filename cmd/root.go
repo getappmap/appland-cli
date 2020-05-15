@@ -11,11 +11,16 @@ import (
 )
 
 var (
-	api     *appland.Client
+	api     appland.Client
 	rootCmd = &cobra.Command{
 		Use:     "appland",
 		Short:   "Manage AppLand resources",
 		Version: build.Version,
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			config.LoadCLIConfig()
+
+			api = DefaultConnecter()
+		},
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.Usage()
 		},
@@ -31,15 +36,18 @@ func warn(err error) {
 	fmt.Fprintf(os.Stderr, "warn: %v\n", err)
 }
 
-func Execute() {
-	config.LoadCLIConfig()
+type Connecter func() appland.Client
+
+var DefaultConnecter = func() appland.Client {
 	context, err := config.GetCurrentContext()
 	if err != nil {
 		fail(err)
 	}
 
-	api = appland.MakeClient(context)
+	return appland.MakeClient(context)
+}
 
+func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		fail(err)
 	}

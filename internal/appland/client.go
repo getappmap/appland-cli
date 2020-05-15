@@ -3,6 +3,7 @@ package appland
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -12,9 +13,37 @@ import (
 	"github.com/applandinc/appland-cli/internal/config"
 )
 
-type Client struct {
+type HttpError struct {
+	Status int
+}
+
+func (e *HttpError) Error() string { return http.StatusText(e.Status) }
+func (e *HttpError) Is(target error) bool {
+	t, ok := target.(*HttpError)
+	if !ok {
+		return false
+	}
+	return e.Status == t.Status
+}
+
+type Client interface {
+	BuildUrl(paths ...interface{}) string
+	Context() *config.Context
+	CreateMapSet(app, org string, scenarios []string) (*CreateMapSetResponse, error)
+	CreateScenario(org string, scenarioData io.Reader) (*ScenarioResponse, error)
+	GetScenario(id int) (*ScenarioResponse, error)
+	DeleteAPIKey() error
+	Login(login string, password string) error
+	TestAPIKey(apiKey string) (bool, error)
+}
+
+type clientImpl struct {
 	context    *config.Context
 	httpClient *http.Client
+}
+
+func (client *clientImpl) Context() *config.Context {
+	return client.context
 }
 
 type CreateMapSetResponse struct {
@@ -33,11 +62,11 @@ type createScenarioRequest struct {
 	Data         string `json:"data"`
 }
 
-type CreateScenarioResponse struct {
+type ScenarioResponse struct {
 	UUID string
 }
 
-func (client *Client) newAuthRequest(method, url string, body io.Reader) (*http.Request, error) {
+func (client *clientImpl) newAuthRequest(method, url string, body io.Reader) (*http.Request, error) {
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return nil, err
@@ -49,7 +78,7 @@ func (client *Client) newAuthRequest(method, url string, body io.Reader) (*http.
 	return req, nil
 }
 
-func (client *Client) post(url string, body io.Reader) (*http.Response, error) {
+func (client *clientImpl) post(url string, body io.Reader) (*http.Response, error) {
 	req, err := client.newAuthRequest(http.MethodPost, url, body)
 	if err != nil {
 		return nil, err
@@ -58,7 +87,7 @@ func (client *Client) post(url string, body io.Reader) (*http.Response, error) {
 	return client.httpClient.Do(req)
 }
 
-func (client *Client) get(url string, body io.Reader) (*http.Response, error) {
+func (client *clientImpl) get(url string, body io.Reader) (*http.Response, error) {
 	req, err := client.newAuthRequest(http.MethodGet, url, body)
 	if err != nil {
 		return nil, err
@@ -67,7 +96,7 @@ func (client *Client) get(url string, body io.Reader) (*http.Response, error) {
 	return client.httpClient.Do(req)
 }
 
-func (client *Client) delete(url string, body io.Reader) (*http.Response, error) {
+func (client *clientImpl) delete(url string, body io.Reader) (*http.Response, error) {
 	req, err := client.newAuthRequest(http.MethodDelete, url, body)
 	if err != nil {
 		return nil, err
@@ -76,14 +105,14 @@ func (client *Client) delete(url string, body io.Reader) (*http.Response, error)
 	return client.httpClient.Do(req)
 }
 
-func MakeClient(context *config.Context) *Client {
-	return &Client{
+func MakeClient(context *config.Context) Client {
+	return &clientImpl{
 		context:    context,
 		httpClient: http.DefaultClient,
 	}
 }
 
-func (client *Client) BuildUrl(paths ...interface{}) string {
+func (client *clientImpl) BuildUrl(paths ...interface{}) string {
 	numPaths := len(paths)
 	path := client.context.GetURL()
 	for i := 0; i < numPaths; i++ {
@@ -92,7 +121,7 @@ func (client *Client) BuildUrl(paths ...interface{}) string {
 	return path
 }
 
-func (client *Client) CreateMapSet(app, org string, scenarios []string) (*CreateMapSetResponse, error) {
+func (client *clientImpl) CreateMapSet(app, org string, scenarios []string) (*CreateMapSetResponse, error) {
 	requestObj := &createMapSetRequest{
 		Organization: org,
 		Application:  app,
@@ -127,7 +156,7 @@ func (client *Client) CreateMapSet(app, org string, scenarios []string) (*Create
 	return responseObj, nil
 }
 
-func (client *Client) CreateScenario(org string, scenarioData io.Reader) (*CreateScenarioResponse, error) {
+func (client *clientImpl) CreateScenario(org string, scenarioData io.Reader) (*ScenarioResponse, error) {
 	scenarioBytes, err := ioutil.ReadAll(scenarioData)
 	if err != nil {
 		return nil, err
@@ -158,7 +187,7 @@ func (client *Client) CreateScenario(org string, scenarioData io.Reader) (*Creat
 		return nil, fmt.Errorf("got status %d:\n%s", resp.StatusCode, string(body))
 	}
 
-	responseObj := &CreateScenarioResponse{}
+	responseObj := &ScenarioResponse{}
 	if err := json.Unmarshal(body, responseObj); err != nil {
 		return nil, err
 	}
@@ -166,7 +195,33 @@ func (client *Client) CreateScenario(org string, scenarioData io.Reader) (*Creat
 	return responseObj, nil
 }
 
-func (client *Client) Login(login string, password string) error {
+func (client *clientImpl) GetScenario(id int) (*ScenarioResponse, error) {
+	url := client.BuildUrl("api", "scenarios", "0")
+	resp, err := client.get(url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		httpError := &HttpError{resp.StatusCode}
+		return nil, fmt.Errorf("GetScenario failed, %w", httpError)
+	}
+
+	responseObj := &ScenarioResponse{}
+	if err := json.Unmarshal(body, responseObj); err != nil {
+		return nil, err
+	}
+
+	return responseObj, nil
+
+}
+
+func (client *clientImpl) Login(login string, password string) error {
 	url := client.BuildUrl("api", "api_keys")
 
 	hostname, err := os.Hostname()
@@ -220,7 +275,7 @@ func (client *Client) Login(login string, password string) error {
 	return nil
 }
 
-func (client *Client) DeleteAPIKey() error {
+func (client *clientImpl) DeleteAPIKey() error {
 	url := client.BuildUrl("api", "api_keys")
 	resp, err := client.delete(url, nil)
 	if err != nil {
@@ -238,4 +293,26 @@ func (client *Client) DeleteAPIKey() error {
 
 	client.context.SetAPIKey("")
 	return nil
+}
+
+func (client *clientImpl) TestAPIKey(apiKey string) (bool, error) {
+	// Test the api key by making a request with an invalid scenario
+	// id. If the response is NotFound, the API key is valid. If the
+	// response is Unauthorized, the API key is invalid. Any other
+	// response is an error.
+	testContext := &config.Context{client.context.URL, apiKey}
+	testApi := MakeClient(testContext)
+
+	_, err := testApi.GetScenario(0)
+	if err == nil {
+		// Shouldn't ever actually find the scenario, though.
+		panic(fmt.Sprintf("Found scenario with id 0?"))
+	}
+	if errors.Is(err, &HttpError{Status: http.StatusNotFound}) {
+		return true, nil
+	} else if errors.Is(err, &HttpError{Status: http.StatusUnauthorized}) {
+		return false, nil
+	}
+
+	return false, err
 }

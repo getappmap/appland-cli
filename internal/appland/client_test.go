@@ -1,29 +1,17 @@
 package appland
 
 import (
+	"net/http"
 	"strings"
 	"testing"
 
-	"github.com/applandinc/appland-cli/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/h2non/gock.v1"
 )
 
-var (
-	url     = "http://example"
-	api_key = "my_api_key"
-)
-
-func makeTestClient() *Client {
-	return MakeClient(&config.Context{
-		APIKey: api_key,
-		URL:    url,
-	})
-}
-
 func TestBuildUrl(t *testing.T) {
-	client := makeTestClient()
+	client := MakeTestClient()
 	assert := assert.New(t)
 	assert.Equal(client.BuildUrl(), "http://example")
 	assert.Equal(client.BuildUrl("applications", 1), "http://example/applications/1")
@@ -42,10 +30,10 @@ func TestLogin(t *testing.T) {
 		Reply(200).
 		JSON(map[string]string{"api_key": new_api_key})
 
-	client := makeTestClient()
+	client := MakeTestClient()
 
 	require.Nil(t, client.Login("admin", "admin"))
-	assert.Equal(t, new_api_key, client.context.APIKey)
+	assert.Equal(t, new_api_key, client.Context().APIKey)
 }
 
 func TestDeleteAPIKey(t *testing.T) {
@@ -58,10 +46,76 @@ func TestDeleteAPIKey(t *testing.T) {
 		Reply(200).
 		JSON(map[string]string{})
 
-	client := makeTestClient()
+	client := MakeTestClient()
 
 	require.Nil(t, client.DeleteAPIKey())
-	assert.Empty(t, client.context.APIKey)
+	assert.Empty(t, client.Context().APIKey)
+}
+
+func TestTestAPIKeyNotFound(t *testing.T) {
+	defer gock.Off()
+
+	gock.New(url).
+		Get("/api/scenarios/0").
+		MatchHeader("Authorization", "Bearer "+api_key).
+		MatchType("json").
+		Reply(http.StatusNotFound)
+
+	client := MakeTestClient()
+
+	ok, err := client.TestAPIKey(api_key)
+	require.True(t, ok)
+	require.Nil(t, err)
+}
+
+func TestTestAPIKeyUnauthorized(t *testing.T) {
+	defer gock.Off()
+
+	gock.New(url).
+		Get("/api/scenarios/0").
+		MatchHeader("Authorization", "Bearer "+api_key).
+		MatchType("json").
+		Reply(http.StatusUnauthorized)
+
+	client := MakeTestClient()
+
+	ok, err := client.TestAPIKey(api_key)
+	require.False(t, ok)
+	require.Nil(t, err)
+}
+
+func TestTestAPIKeyNotOK(t *testing.T) {
+	defer gock.Off()
+
+	gock.New(url).
+		Get("/api/scenarios/0").
+		MatchHeader("Authorization", "Bearer "+api_key).
+		MatchType("json").
+		Reply(http.StatusInternalServerError)
+
+	client := MakeTestClient()
+
+	ok, err := client.TestAPIKey(api_key)
+	require.False(t, ok)
+	require.NotNil(t, err)
+}
+
+func TestTestAPIKeyOK(t *testing.T) {
+	defer gock.Off()
+
+	uuid := "not-a-real-scenario-id"
+	gock.New(url).
+		Get("/api/scenarios/0").
+		MatchHeader("Authorization", "Bearer "+api_key).
+		MatchType("json").
+		Reply(http.StatusOK).
+		JSON(map[string]string{"uuid": uuid})
+
+	client := MakeTestClient()
+
+	require.Panics(t, func() {
+		client.TestAPIKey(api_key)
+	})
 }
 
 func TestCreateScenario(t *testing.T) {
@@ -77,7 +131,7 @@ func TestCreateScenario(t *testing.T) {
 		Reply(201).
 		JSON(map[string]string{"uuid": scenarioUUID})
 
-	client := makeTestClient()
+	client := MakeTestClient()
 	res, err := client.CreateScenario("myorg", strings.NewReader("{}"))
 	require.Nil(t, err)
 	assert.Equal(t, scenarioUUID, res.UUID)
@@ -99,7 +153,7 @@ func TestCreateMapSet(t *testing.T) {
 		Reply(201).
 		JSON(map[string]uint32{"id": 12345, "app_id": 67890})
 
-	client := makeTestClient()
+	client := MakeTestClient()
 	res, err := client.CreateMapSet("myapp", "myorg", scenarios)
 	require.Nil(t, err)
 	assert.Equal(t, uint32(12345), res.ID)
