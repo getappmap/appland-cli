@@ -6,6 +6,8 @@ builds:
 - binary: appland
   env:
   - CGO_ENABLED=0
+  ldflags:
+  - -s -w -X github.com/applandinc/appland-cli/internal/build.Version={{.Version}}
 archives:
 - replacements:
     darwin: Darwin
