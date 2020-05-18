@@ -38,8 +38,8 @@ func NewLoginCommand(connecter Connecter, stdin io.Reader, passwordReader Passwo
 				fail(err)
 			}
 
-			fmt.Printf("logging into %s\n\n", context.GetURL())
-			fmt.Printf("login: ")
+			fmt.Printf("Logging into %s\n\n", context.GetURL())
+			fmt.Printf("Login or API key: ")
 			login, err := reader.ReadString('\n')
 			if err != nil {
 				fail(err)
@@ -62,20 +62,20 @@ func NewLoginCommand(connecter Connecter, stdin io.Reader, passwordReader Passwo
 			if validAPIKey {
 				context.SetAPIKey(login)
 			} else {
-				fmt.Printf("password: ")
+				fmt.Printf("Password: ")
 				bytes, err := passwordReader()
 				if err != nil {
 					fail(err)
 				}
 
-				fmt.Println("logging in....")
+				fmt.Println("Logging in...")
 				err = api.Login(login, strings.TrimSpace(string(bytes)))
 				if err != nil {
 					fail(err)
 				}
 			}
 
-			fmt.Printf("\n\nlogged in.\n")
+			fmt.Printf("\n\nLogged in.\n")
 		},
 	}
 }
