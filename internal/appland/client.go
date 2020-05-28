@@ -11,6 +11,7 @@ import (
 	"os"
 
 	"github.com/applandinc/appland-cli/internal/config"
+	"github.com/applandinc/appland-cli/internal/metadata"
 )
 
 type HttpError struct {
@@ -29,7 +30,7 @@ func (e *HttpError) Is(target error) bool {
 type Client interface {
 	BuildUrl(paths ...interface{}) string
 	Context() *config.Context
-	CreateMapSet(app, org string, scenarios []string) (*CreateMapSetResponse, error)
+	CreateMapSet(mapset *MapSet) (*CreateMapSetResponse, error)
 	CreateScenario(org string, scenarioData io.Reader) (*ScenarioResponse, error)
 	GetScenario(id int) (*ScenarioResponse, error)
 	DeleteAPIKey() error
@@ -51,15 +52,47 @@ type CreateMapSetResponse struct {
 	AppID uint32 `json:"app_id"`
 }
 
-type createMapSetRequest struct {
-	Organization string   `json:"org"`
-	Application  string   `json:"app"`
-	Scenarios    []string `json:"scenarios"`
+type MapSet struct {
+	Organization string   `json:"org,omitempty"`
+	Application  string   `json:"app,omitempty"`
+	Commit       string   `json:"commit,omitempty"`
+	Branch       string   `json:"branch,omitempty"`
+	Version      string   `json:"version,omitempty"`
+	Environment  string   `json:"environment,omitempty"`
+	Scenarios    []string `json:"scenarios,omitempty"`
+}
+
+func BuildMapSet(application string, scenarios []string) *MapSet {
+	return &MapSet{
+		Application: application,
+		Scenarios:   scenarios,
+	}
+}
+
+func (mapset *MapSet) SetEnvironment(environment string) *MapSet {
+	mapset.Environment = environment
+	return mapset
+}
+
+func (mapset *MapSet) SetVersion(version string) *MapSet {
+	mapset.Version = version
+	return mapset
+}
+
+func (mapset *MapSet) SetOrganization(org string) *MapSet {
+	mapset.Organization = org
+	return mapset
+}
+
+func (mapset *MapSet) WithGitMetadata(git *metadata.GitMetadata) *MapSet {
+	mapset.Branch = git.Branch
+	mapset.Commit = git.Commit
+	return mapset
 }
 
 type createScenarioRequest struct {
-	Organization string `json:"org"`
-	Data         string `json:"data"`
+	Organization string `json:"org,omitempty"`
+	Data         string `json:"data,omitempty"`
 }
 
 type ScenarioResponse struct {
@@ -121,14 +154,8 @@ func (client *clientImpl) BuildUrl(paths ...interface{}) string {
 	return path
 }
 
-func (client *clientImpl) CreateMapSet(app, org string, scenarios []string) (*CreateMapSetResponse, error) {
-	requestObj := &createMapSetRequest{
-		Organization: org,
-		Application:  app,
-		Scenarios:    scenarios,
-	}
-
-	data, err := json.Marshal(requestObj)
+func (client *clientImpl) CreateMapSet(mapset *MapSet) (*CreateMapSetResponse, error) {
+	data, err := json.Marshal(mapset)
 	if err != nil {
 		return nil, err
 	}

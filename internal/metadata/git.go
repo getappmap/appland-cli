@@ -18,9 +18,9 @@ type GitMetadata struct {
 	Tag        string   `json:"annotated_tag,omitempty"`
 }
 
-var metadataCache = map[string]*jsonpatch.Patch{}
+var metadataCache = map[string]*GitMetadata{}
 
-func GetGitMetadata(path string) (*jsonpatch.Patch, error) {
+func GetGitMetadata(path string) (*GitMetadata, error) {
 	repositoryInfo, err := util.GetRepository(path)
 	if err != nil {
 		return nil, err
@@ -36,12 +36,16 @@ func GetGitMetadata(path string) (*jsonpatch.Patch, error) {
 		return nil, err
 	}
 
-	patch, err := util.BuildPatch("replace", "/metadata/git", gitMetadata)
+	metadataCache[repositoryInfo.Path] = gitMetadata
+
+	return gitMetadata, nil
+}
+
+func (git *GitMetadata) AsPatch() (*jsonpatch.Patch, error) {
+	patch, err := util.BuildPatch("replace", "/metadata/git", git)
 	if err != nil {
 		return nil, err
 	}
-
-	metadataCache[repositoryInfo.Path] = &patch
 
 	return &patch, nil
 }
