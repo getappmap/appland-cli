@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/applandinc/appland-cli/internal/metadata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/h2non/gock.v1"
@@ -140,6 +141,10 @@ func TestCreateScenario(t *testing.T) {
 func TestCreateMapSet(t *testing.T) {
 	defer gock.Off()
 
+	git := &metadata.GitMetadata{
+		Commit: "76c0ae55fff17ae52ab67a0ff61e1af3d1157555",
+		Branch: "master",
+	}
 	scenarios := []string{
 		"100582f6-27ba-4a04-a9d6-a634c742076c",
 		"e06eb6b2-1031-4625-8218-4b6a65580584",
@@ -149,12 +154,22 @@ func TestCreateMapSet(t *testing.T) {
 		Post("/api/mapsets").
 		MatchHeader("Authorization", "Bearer "+api_key).
 		MatchType("json").
-		JSON(map[string]interface{}{"org": "myorg", "app": "myapp", "scenarios": scenarios}).
+		JSON(
+			map[string]interface{}{
+				"org":       "myorg",
+				"app":       "myapp",
+				"commit":    git.Commit,
+				"branch":    git.Branch,
+				"scenarios": scenarios}).
 		Reply(201).
 		JSON(map[string]uint32{"id": 12345, "app_id": 67890})
 
 	client := MakeTestClient()
-	res, err := client.CreateMapSet("myapp", "myorg", scenarios)
+	mapset := BuildMapSet("myapp", scenarios).
+		SetOrganization("myorg").
+		WithGitMetadata(git)
+
+	res, err := client.CreateMapSet(mapset)
 	require.Nil(t, err)
 	assert.Equal(t, uint32(12345), res.ID)
 	assert.Equal(t, uint32(67890), res.AppID)
