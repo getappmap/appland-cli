@@ -8,6 +8,7 @@ import (
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/plumbing/storer"
 )
 
 type GitMetadata struct {
@@ -50,33 +51,11 @@ func (git *GitMetadata) AsPatch() (*jsonpatch.Patch, error) {
 	return &patch, nil
 }
 
-func collectGitMetadata(repo *git.Repository) (*GitMetadata, error) {
-	metadata := &GitMetadata{}
-	head, err := repo.Head()
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve HEAD: %w", err)
-	}
-	metadata.Commit = head.Hash().String()
+// findReference currently only resolves references to tags or commits
+func findReference(repo *git.Repository, hash plumbing.Hash, iter storer.ReferenceIter) (*plumbing.Reference, error) {
+	var refMatch *plumbing.Reference
 
-	headReference := head.Name()
-	if headReference.IsBranch() {
-		metadata.Branch = head.Name().Short()
-	}
-
-	remote, err := repo.Remote("origin")
-	if err == nil {
-		remoteURLs := remote.Config().URLs
-		if len(remoteURLs) > 0 {
-			metadata.Repository = remoteURLs[0]
-		}
-	}
-
-	tags, err := repo.Tags()
-	if err != nil {
-		return nil, fmt.Errorf("failed to read tags from repository: %w", err)
-	}
-
-	err = tags.ForEach(func(ref *plumbing.Reference) error {
+	err := iter.ForEach(func(ref *plumbing.Reference) error {
 		var commit *object.Commit
 		obj, err := repo.TagObject(ref.Hash())
 		switch err {
@@ -94,14 +73,94 @@ func collectGitMetadata(repo *git.Repository) (*GitMetadata, error) {
 			return err
 		}
 
-		if commit.Hash.String() == head.Hash().String() {
-			metadata.Tag = ref.Name().Short()
+		if commit.Hash.String() == hash.String() {
+			refMatch = ref
+
+			// returning an error here stops further iteration
+			// with refMatch set, it will be nulled out later on
+			return fmt.Errorf("")
 		}
 
 		return nil
 	})
+
+	// if we have a match we shouldn't have any errors
+	if refMatch != nil {
+		err = nil
+	}
+
+	if refMatch == nil && err == nil {
+		err = fmt.Errorf("not found (%v)", hash.String())
+	}
+
+	return refMatch, err
+}
+
+func collectGitMetadata(repo *git.Repository) (*GitMetadata, error) {
+	metadata := &GitMetadata{}
+	head, err := repo.Head()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve HEAD: %w", err)
+	}
+	metadata.Commit = head.Hash().String()
+
+	headReference := head.Name()
+	if headReference.IsBranch() {
+		metadata.Branch = headReference.Short()
+	} else {
+		// handle detached HEAD
+		commit, err := repo.CommitObject(head.Hash())
+		if err != nil {
+			return nil, fmt.Errorf("failed to read commit at HEAD")
+		}
+
+		// assume HEAD is a merge commit such as one created by GitHub
+		// this attempts to retrieve a branch name from the last parent and as such,
+		// this doesn't support multi-merge
+		lastParentIndex := commit.NumParents() - 1
+		if lastParentIndex == 1 {
+			parentCommit, err := commit.Parent(lastParentIndex)
+			if err != nil {
+				return nil, fmt.Errorf("failed to resolve parent commit for HEAD")
+			}
+
+			branches, err := repo.Branches()
+			if err != nil {
+				return nil, fmt.Errorf("failed to read branches from repository: %w", err)
+			}
+
+			ref, err := findReference(repo, parentCommit.Hash, branches)
+			if err != nil {
+				return nil, fmt.Errorf("failed to find reference: %w", err)
+			}
+
+			if ref.Name().IsBranch() {
+				metadata.Branch = ref.Name().Short()
+
+				// use the parent reference instead of HEAD because we're unlikely to
+				// find tags on a detached HEAD
+				head = ref
+				fmt.Printf("merge commit in HEAD, assuming branch %s\n", metadata.Branch)
+			}
+		}
+	}
+
+	remote, err := repo.Remote("origin")
+	if err == nil {
+		remoteURLs := remote.Config().URLs
+		if len(remoteURLs) > 0 {
+			metadata.Repository = remoteURLs[0]
+		}
+	}
+
+	tags, err := repo.Tags()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read tags from repository: %w", err)
+	}
+
+	ref, err := findReference(repo, head.Hash(), tags)
+	if err == nil {
+		metadata.Tag = ref.Name().Short()
 	}
 
 	// The following comment block is functional code, but way too slow
