@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Git metadata collection should be more resilient in cases where `HEAD` is not
   a branch
+- Add a `--branch/-b` flag to `appland upload` which specifies a branch name
+  fallback if the branch name cannot be resolved from Git.
 
 ## [0.2.0]
 ### Changed
