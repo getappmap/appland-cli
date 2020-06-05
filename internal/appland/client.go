@@ -84,9 +84,20 @@ func (mapset *MapSet) SetOrganization(org string) *MapSet {
 	return mapset
 }
 
+func (mapset *MapSet) SetBranch(branch string) *MapSet {
+	if mapset.Branch != "" && mapset.Branch != branch {
+		fmt.Fprintf(os.Stderr, "warn: current branch differs from override (%s != %s)", mapset.Branch, branch)
+	}
+
+	mapset.Branch = branch
+	return mapset
+}
+
 func (mapset *MapSet) WithGitMetadata(git *metadata.GitMetadata) *MapSet {
-	mapset.Branch = git.Branch
-	mapset.Commit = git.Commit
+	if git != nil {
+		mapset.Branch = git.Branch
+		mapset.Commit = git.Commit
+	}
 	return mapset
 }
 

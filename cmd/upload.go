@@ -16,6 +16,7 @@ import (
 
 func init() {
 	var (
+		branch          string
 		environment     string
 		organization    string
 		version         string
@@ -83,7 +84,8 @@ func init() {
 					SetOrganization(organization).
 					SetVersion(version).
 					SetEnvironment(environment).
-					WithGitMetadata(git)
+					WithGitMetadata(git).
+					SetBranch(branch)
 
 				res, err := api.CreateMapSet(mapSet)
 				if err != nil {
@@ -106,6 +108,7 @@ func init() {
 
 	uploadCmd.Flags().BoolVar(&dontOpenBrowser, "no-open", false, "Do not open the browser after a successful upload")
 	uploadCmd.Flags().StringVarP(&organization, "org", "o", "", "Override the owning organization")
+	uploadCmd.Flags().StringVarP(&branch, "branch", "b", "", "Set the MapSet branch if it's otherwise unavailable from Git")
 	uploadCmd.Flags().StringVarP(&version, "version", "v", "", "Set the MapSet version")
 	uploadCmd.Flags().StringVarP(&environment, "environment", "e", "", "Set the MapSet environment")
 	rootCmd.AddCommand(uploadCmd)
