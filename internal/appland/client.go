@@ -85,6 +85,10 @@ func (mapset *MapSet) SetOrganization(org string) *MapSet {
 }
 
 func (mapset *MapSet) SetBranch(branch string) *MapSet {
+	if branch == "" {
+		return mapset
+	}
+
 	if mapset.Branch != "" && mapset.Branch != branch {
 		fmt.Fprintf(os.Stderr, "warn: current branch differs from override (%s != %s)", mapset.Branch, branch)
 	}
