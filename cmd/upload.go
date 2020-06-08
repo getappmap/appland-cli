@@ -80,6 +80,11 @@ func init() {
 					progressBar.Add(1)
 				}
 
+				if branch == "" && git.Branch == "" {
+					progressBar.Clear()
+					fail(fmt.Errorf("Git branch could not be resolved\nRun again with the --branch or -b flag specified"))
+				}
+
 				mapSet := appland.BuildMapSet(appmapConfig.Application, scenarios).
 					SetOrganization(organization).
 					SetVersion(version).

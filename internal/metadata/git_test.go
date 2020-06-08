@@ -49,8 +49,7 @@ func TestCollectGitMetadata(t *testing.T) {
 	require.Nil(t, err)
 	require.NotNil(t, tagRef)
 
-	metadata, err := collectGitMetadata(repo)
-	require.Nil(t, err)
+	metadata := collectGitMetadata(repo).Build()
 	require.NotNil(t, metadata)
 
 	assert := assert.New(t)
