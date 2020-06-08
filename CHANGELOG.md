@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0]
+### Changed
+- Git metadata collection will now continue and retain information in the event
+  of an error.
+
+### Removed
+- Alternate strategies to resolve a branch name have been removed in favor of
+  specifying the `--branch` or `-b` flag upon upload.
+
 ## [0.3.0]
 ### Changed
 - Git metadata collection should be more resilient in cases where `HEAD` is not
