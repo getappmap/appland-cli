@@ -12,7 +12,7 @@ password:
 
 logged in.
 
-$ appland upload --org myorg tmp/*.json
+$ appland upload tmp/*.json
  100% |████████████████████████████████████████|  [0s:0s]
 
 Success! Application has been updated with 1 scenarios.
