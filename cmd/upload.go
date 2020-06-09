@@ -80,9 +80,17 @@ func init() {
 					progressBar.Add(1)
 				}
 
-				if branch == "" && git.Branch == "" {
+				// either both commit and branch are specified or both are unspecified
+				// fail otherwise
+				commitProvided := bool(git != nil && git.Commit != "")
+				branchProvided := bool((git != nil && git.Branch != "") || branch != "")
+				if commitProvided != branchProvided {
 					progressBar.Clear()
+					if commitProvided {
 					fail(fmt.Errorf("Git branch could not be resolved\nRun again with the --branch or -b flag specified"))
+					} else {
+						fail(fmt.Errorf("The --branch or -b flag can only be provided when uploading appmaps from within a Git repository"))
+					}
 				}
 
 				mapSet := appland.BuildMapSet(appmapConfig.Application, scenarios).
