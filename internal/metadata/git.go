@@ -168,3 +168,11 @@ func (git *GitMetadata) AsPatch() (*jsonpatch.Patch, error) {
 
 	return &patch, nil
 }
+
+func (git *GitMetadata) IsEmpty() bool {
+	return git.Branch == "" &&
+		git.Commit == "" &&
+		git.Repository == "" &&
+		len(git.Status) == 0 &&
+		git.Tag == ""
+}

@@ -56,10 +56,10 @@ func init() {
 
 					git, err = metadata.GetGitMetadata(path)
 					if err != nil {
-						progressBar.Clear()
-						warn(fmt.Errorf("Could not collect git metadata (%w)", err))
-						progressBar.RenderBlank()
-					} else {
+						util.Debugf("%w", err)
+					}
+
+					if err == nil && !git.IsEmpty() {
 						gitPatch, err := git.AsPatch()
 						if err != nil {
 							fail(err)
