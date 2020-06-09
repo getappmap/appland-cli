@@ -12,6 +12,7 @@ import (
 
 	"github.com/applandinc/appland-cli/internal/config"
 	"github.com/applandinc/appland-cli/internal/metadata"
+	"github.com/applandinc/appland-cli/internal/util"
 )
 
 type HttpError struct {
@@ -53,13 +54,12 @@ type CreateMapSetResponse struct {
 }
 
 type MapSet struct {
-	Organization string   `json:"org,omitempty"`
-	Application  string   `json:"app,omitempty"`
-	Commit       string   `json:"commit,omitempty"`
-	Branch       string   `json:"branch,omitempty"`
-	Version      string   `json:"version,omitempty"`
-	Environment  string   `json:"environment,omitempty"`
-	Scenarios    []string `json:"scenarios,omitempty"`
+	Application string   `json:"app,omitempty"`
+	Commit      string   `json:"commit,omitempty"`
+	Branch      string   `json:"branch,omitempty"`
+	Version     string   `json:"version,omitempty"`
+	Environment string   `json:"environment,omitempty"`
+	Scenarios   []string `json:"scenarios,omitempty"`
 }
 
 func BuildMapSet(application string, scenarios []string) *MapSet {
@@ -76,11 +76,6 @@ func (mapset *MapSet) SetEnvironment(environment string) *MapSet {
 
 func (mapset *MapSet) SetVersion(version string) *MapSet {
 	mapset.Version = version
-	return mapset
-}
-
-func (mapset *MapSet) SetOrganization(org string) *MapSet {
-	mapset.Organization = org
 	return mapset
 }
 
@@ -106,8 +101,11 @@ func (mapset *MapSet) WithGitMetadata(git *metadata.GitMetadata) *MapSet {
 }
 
 type createScenarioRequest struct {
-	Organization string `json:"org,omitempty"`
-	Data         string `json:"data,omitempty"`
+	Data string `json:"data,omitempty"`
+}
+
+type scenarioMetadata struct {
+	Name string `json:"name"`
 }
 
 type ScenarioResponse struct {
@@ -198,15 +196,24 @@ func (client *clientImpl) CreateMapSet(mapset *MapSet) (*CreateMapSetResponse, e
 	return responseObj, nil
 }
 
-func (client *clientImpl) CreateScenario(org string, scenarioData io.Reader) (*ScenarioResponse, error) {
+func (client *clientImpl) CreateScenario(app string, scenarioData io.Reader) (*ScenarioResponse, error) {
 	scenarioBytes, err := ioutil.ReadAll(scenarioData)
 	if err != nil {
 		return nil, err
 	}
 
+	appPatch, err := util.BuildPatch("replace", "/metadata", &scenarioMetadata{app})
+	if err != nil {
+		return nil, err
+	}
+
+	scenarioBytes, err = appPatch.Apply(scenarioBytes)
+	if err != nil {
+		return nil, err
+	}
+
 	requestObj := &createScenarioRequest{
-		Organization: org,
-		Data:         string(scenarioBytes),
+		Data: string(scenarioBytes),
 	}
 
 	data, err := json.Marshal(requestObj)

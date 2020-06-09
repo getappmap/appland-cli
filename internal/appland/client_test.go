@@ -128,12 +128,12 @@ func TestCreateScenario(t *testing.T) {
 		Post("/api/scenarios").
 		MatchHeader("Authorization", "Bearer "+api_key).
 		MatchType("json").
-		JSON(map[string]string{"org": "myorg", "data": "{}"}).
+		JSON(map[string]string{"data": `{"metadata":{"name":"myapp"}}`}).
 		Reply(201).
 		JSON(map[string]string{"uuid": scenarioUUID})
 
 	client := MakeTestClient()
-	res, err := client.CreateScenario("myorg", strings.NewReader("{}"))
+	res, err := client.CreateScenario("myapp", strings.NewReader("{}"))
 	require.Nil(t, err)
 	assert.Equal(t, scenarioUUID, res.UUID)
 }
@@ -156,8 +156,7 @@ func TestCreateMapSet(t *testing.T) {
 		MatchType("json").
 		JSON(
 			map[string]interface{}{
-				"org":       "myorg",
-				"app":       "myapp",
+				"app":       "myorg/myapp",
 				"commit":    git.Commit,
 				"branch":    git.Branch,
 				"scenarios": scenarios}).
@@ -165,8 +164,7 @@ func TestCreateMapSet(t *testing.T) {
 		JSON(map[string]uint32{"id": 12345, "app_id": 67890})
 
 	client := MakeTestClient()
-	mapset := BuildMapSet("myapp", scenarios).
-		SetOrganization("myorg").
+	mapset := BuildMapSet("myorg/myapp", scenarios).
 		WithGitMetadata(git)
 
 	res, err := client.CreateMapSet(mapset)

@@ -1,4 +1,4 @@
-package metadata
+package util
 
 import (
 	"encoding/json"
