@@ -60,8 +60,8 @@ first run.
 #### upload
 Upload a mapset of scenario files.
 
-`upload --org <organization> [files]`  
-Uploads an array of scenario files to AppLand.
+`upload [files, dirs]`
+Uploads a list of scenario files or directories to AppLand.
 
 ## Building
 `./bin/build` will build a binary to the `dist` directory. To install, copy the
