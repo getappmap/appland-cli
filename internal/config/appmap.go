@@ -23,7 +23,7 @@ type AppMapPackage struct {
 }
 
 func loadAppmapConfig(path string) (*AppMapConfig, error) {
-	data, err := afero.ReadFile(getFS(), path)
+	data, err := afero.ReadFile(GetFS(), path)
 	if err != nil {
 		return nil, err
 	}
@@ -47,13 +47,13 @@ func LoadAppmapConfig(overridePath string, fallbackPath string) (*AppMapConfig, 
 	}
 
 	appmapPath := path.Join(currentDir, appmapYaml)
-	if ok, _ := afero.Exists(getFS(), appmapPath); ok {
+	if ok, _ := afero.Exists(GetFS(), appmapPath); ok {
 		return loadAppmapConfig(appmapPath)
 	}
 
 	if repoInfo, err := util.GetRepository(currentDir); err == nil {
 		appmapPath = path.Join(repoInfo.Path, appmapYaml)
-		if ok, _ := afero.Exists(getFS(), appmapPath); ok {
+		if ok, _ := afero.Exists(GetFS(), appmapPath); ok {
 			return loadAppmapConfig(appmapPath)
 		}
 	}
@@ -61,7 +61,7 @@ func LoadAppmapConfig(overridePath string, fallbackPath string) (*AppMapConfig, 
 	if fallbackPath != "" {
 		if repoInfo, err := util.GetRepository(fallbackPath); err == nil {
 			appmapPath = path.Join(repoInfo.Path, appmapYaml)
-			if ok, _ := afero.Exists(getFS(), appmapPath); ok {
+			if ok, _ := afero.Exists(GetFS(), appmapPath); ok {
 				return loadAppmapConfig(appmapPath)
 			}
 		}

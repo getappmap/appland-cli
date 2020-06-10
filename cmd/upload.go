@@ -14,11 +14,12 @@ import (
 	"github.com/applandinc/appland-cli/internal/util"
 	"github.com/pkg/browser"
 	progressbar "github.com/schollz/progressbar/v3"
+	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 )
 
 func loadDirectory(dirName string, scenarioFiles []string) []string {
-	files, err := ioutil.ReadDir(dirName)
+	files, err := afero.ReadDir(config.GetFS(), dirName)
 	if err != nil {
 		fail(err)
 	}
@@ -68,7 +69,7 @@ func init() {
 
 				scenarioFiles := make([]string, 0, 10)
 				for _, path := range args {
-					fi, err := os.Stat(path)
+				fi, err := config.GetFS().Stat(path)
 					if err != nil {
 						fail(err)
 						return
@@ -87,7 +88,7 @@ func init() {
 				progressBar.RenderBlank()
 
 				for _, scenarioFile := range scenarioFiles {
-					file, err := os.Open(scenarioFile)
+				file, err := config.GetFS().Open(scenarioFile)
 					if err != nil {
 						fail(err)
 					}
