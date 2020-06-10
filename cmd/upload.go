@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/applandinc/appland-cli/internal/appland"
 	"github.com/applandinc/appland-cli/internal/config"
@@ -15,6 +17,25 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func loadDirectory(dirName string, scenarioFiles []string) []string {
+	files, err := ioutil.ReadDir(dirName)
+	if err != nil {
+		fail(err)
+	}
+
+	for _, fi := range files {
+		if !fi.Mode().IsRegular() {
+			continue
+		}
+		if !strings.HasSuffix(fi.Name(), ".appmap.json") {
+			continue
+		}
+
+		scenarioFiles = append(scenarioFiles, filepath.Join(dirName, fi.Name()))
+	}
+	return scenarioFiles
+}
+
 func init() {
 	var (
 		branch          string
@@ -24,7 +45,7 @@ func init() {
 		dontOpenBrowser bool
 
 		uploadCmd = &cobra.Command{
-			Use:   "upload [files]",
+			Use:   "upload [files, directories]",
 			Short: "Upload AppMap files to AppLand",
 			Args:  cobra.MinimumNArgs(1),
 			Run: func(cmd *cobra.Command, args []string) {
@@ -37,10 +58,6 @@ func init() {
 					application = appmapConfig.Application
 				}
 
-				scenarios := make([]string, len(args))
-				progressBar := progressbar.New(len(args) + 1)
-				progressBar.RenderBlank()
-
 				// TODO
 				// In the future, perhaps we do something a little more graceful than to
 				// use the git metadata from the last file uploaded. It seems we
@@ -48,8 +65,28 @@ func init() {
 				// single mapset.
 				var git *metadata.GitMetadata
 
-				for i, path := range args {
-					file, err := os.Open(path)
+				scenarioFiles := make([]string, 0, 10)
+				for _, path := range args {
+					fi, err := os.Stat(path)
+					if err != nil {
+						fail(err)
+						return
+					}
+
+					switch mode := fi.Mode(); {
+					case mode.IsDir():
+						scenarioFiles = loadDirectory(path, scenarioFiles)
+					case mode.IsRegular():
+						scenarioFiles = append(scenarioFiles, path)
+					}
+				}
+
+				scenarioUUIDs := make([]string, 0, len(scenarioFiles))
+				progressBar := progressbar.New(len(scenarioFiles) + 1)
+				progressBar.RenderBlank()
+
+				for _, scenarioFile := range scenarioFiles {
+					file, err := os.Open(scenarioFile)
 					if err != nil {
 						fail(err)
 					}
@@ -59,7 +96,7 @@ func init() {
 						fail(err)
 					}
 
-					git, err = metadata.GetGitMetadata(path)
+					git, err = metadata.GetGitMetadata(scenarioFile)
 					if err != nil {
 						util.Debugf("%w", err)
 					}
@@ -81,7 +118,7 @@ func init() {
 						fail(err)
 					}
 
-					scenarios[i] = resp.UUID
+					scenarioUUIDs = append(scenarioUUIDs, resp.UUID)
 					progressBar.Add(1)
 				}
 
@@ -98,7 +135,7 @@ func init() {
 					}
 				}
 
-				mapSet := appland.BuildMapSet(application, scenarios).
+				mapSet := appland.BuildMapSet(application, scenarioUUIDs).
 					SetVersion(version).
 					SetEnvironment(environment).
 					WithGitMetadata(git).
@@ -111,7 +148,7 @@ func init() {
 
 				progressBar.Finish()
 
-				fmt.Printf("\n\nSuccess! %s has been updated with %d scenarios.\n", application, len(args))
+				fmt.Printf("\n\nSuccess! %s has been updated with %d scenarios.\n", application, len(scenarioUUIDs))
 
 				url := api.BuildUrl("applications", fmt.Sprintf("%d?mapset=%d", res.AppID, res.ID))
 				if dontOpenBrowser {
