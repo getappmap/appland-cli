@@ -9,6 +9,7 @@ import (
 	"github.com/applandinc/appland-cli/internal/appland"
 	"github.com/applandinc/appland-cli/internal/config"
 	"github.com/applandinc/appland-cli/internal/metadata"
+	"github.com/applandinc/appland-cli/internal/util"
 	"github.com/pkg/browser"
 	progressbar "github.com/schollz/progressbar/v3"
 	"github.com/spf13/cobra"
@@ -18,7 +19,7 @@ func init() {
 	var (
 		branch          string
 		environment     string
-		organization    string
+		application     string
 		version         string
 		dontOpenBrowser bool
 
@@ -27,9 +28,13 @@ func init() {
 			Short: "Upload AppMap files to AppLand",
 			Args:  cobra.MinimumNArgs(1),
 			Run: func(cmd *cobra.Command, args []string) {
-				appmapConfig, err := config.LoadAppmapConfig("", args[0])
-				if err != nil {
-					fail(err)
+				if application == "" {
+					appmapConfig, err := config.LoadAppmapConfig("", args[0])
+					if err != nil {
+						fail(fmt.Errorf("an appmap.yml should exist in the target repository or the --app / -a flag specified"))
+					}
+
+					application = appmapConfig.Application
 				}
 
 				scenarios := make([]string, len(args))
@@ -56,10 +61,10 @@ func init() {
 
 					git, err = metadata.GetGitMetadata(path)
 					if err != nil {
-						progressBar.Clear()
-						warn(fmt.Errorf("Could not collect git metadata (%w)", err))
-						progressBar.RenderBlank()
-					} else {
+						util.Debugf("%w", err)
+					}
+
+					if err == nil && !git.IsEmpty() {
 						gitPatch, err := git.AsPatch()
 						if err != nil {
 							fail(err)
@@ -71,7 +76,7 @@ func init() {
 						}
 					}
 
-					resp, err := api.CreateScenario(organization, bytes.NewReader(data))
+					resp, err := api.CreateScenario(application, bytes.NewReader(data))
 					if err != nil {
 						fail(err)
 					}
@@ -80,8 +85,20 @@ func init() {
 					progressBar.Add(1)
 				}
 
-				mapSet := appland.BuildMapSet(appmapConfig.Application, scenarios).
-					SetOrganization(organization).
+				// either both commit and branch are specified or both are unspecified
+				// fail otherwise
+				commitProvided := bool(git != nil && git.Commit != "")
+				branchProvided := bool((git != nil && git.Branch != "") || branch != "")
+				if commitProvided != branchProvided {
+					progressBar.Clear()
+					if commitProvided {
+						fail(fmt.Errorf("Git branch could not be resolved\nRun again with the --branch or -b flag specified"))
+					} else {
+						fail(fmt.Errorf("The --branch or -b flag can only be provided when uploading appmaps from within a Git repository"))
+					}
+				}
+
+				mapSet := appland.BuildMapSet(application, scenarios).
 					SetVersion(version).
 					SetEnvironment(environment).
 					WithGitMetadata(git).
@@ -94,7 +111,7 @@ func init() {
 
 				progressBar.Finish()
 
-				fmt.Printf("\n\nSuccess! %s has been updated with %d scenarios.\n", appmapConfig.Application, len(args))
+				fmt.Printf("\n\nSuccess! %s has been updated with %d scenarios.\n", application, len(args))
 
 				url := api.BuildUrl("applications", fmt.Sprintf("%d?mapset=%d", res.AppID, res.ID))
 				if dontOpenBrowser {
@@ -107,7 +124,7 @@ func init() {
 	)
 
 	uploadCmd.Flags().BoolVar(&dontOpenBrowser, "no-open", false, "Do not open the browser after a successful upload")
-	uploadCmd.Flags().StringVarP(&organization, "org", "o", "", "Override the owning organization")
+	uploadCmd.Flags().StringVarP(&application, "app", "a", "", "Override the owning application")
 	uploadCmd.Flags().StringVarP(&branch, "branch", "b", "", "Set the MapSet branch if it's otherwise unavailable from Git")
 	uploadCmd.Flags().StringVarP(&version, "version", "v", "", "Set the MapSet version")
 	uploadCmd.Flags().StringVarP(&environment, "environment", "e", "", "Set the MapSet environment")

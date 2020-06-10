@@ -1,4 +1,4 @@
-package metadata
+package util
 
 import (
 	"encoding/json"
@@ -101,4 +101,12 @@ func BuildPatch(op string, path string, obj interface{}) (jsonpatch.Patch, error
 	}
 
 	return jsonpatch.DecodePatch([]byte("[" + strings.Join(patches, ",") + "]"))
+}
+
+func Debugf(format string, args ...interface{}) (int, error) {
+	if os.Getenv("APPLAND_DEBUG") == "" {
+		return 0, nil
+	}
+
+	return fmt.Printf("DEBUG: "+format, args)
 }
