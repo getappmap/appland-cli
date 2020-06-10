@@ -41,6 +41,7 @@ func init() {
 		branch          string
 		environment     string
 		application     string
+		appmapPath      string
 		version         string
 		dontOpenBrowser bool
 
@@ -50,7 +51,7 @@ func init() {
 			Args:  cobra.MinimumNArgs(1),
 			Run: func(cmd *cobra.Command, args []string) {
 				if application == "" {
-					appmapConfig, err := config.LoadAppmapConfig("", args[0])
+					appmapConfig, err := config.LoadAppmapConfig(appmapPath, args[0])
 					if err != nil {
 						fail(fmt.Errorf("an appmap.yml should exist in the target repository or the --app / -a flag specified"))
 					}
@@ -162,6 +163,7 @@ func init() {
 
 	uploadCmd.Flags().BoolVar(&dontOpenBrowser, "no-open", false, "Do not open the browser after a successful upload")
 	uploadCmd.Flags().StringVarP(&application, "app", "a", "", "Override the owning application")
+	uploadCmd.Flags().StringVar(&appmapPath, "f", "", "Specify an appmap.yml path")
 	uploadCmd.Flags().StringVarP(&branch, "branch", "b", "", "Set the MapSet branch if it's otherwise unavailable from Git")
 	uploadCmd.Flags().StringVarP(&version, "version", "v", "", "Set the MapSet version")
 	uploadCmd.Flags().StringVarP(&environment, "environment", "e", "", "Set the MapSet environment")
