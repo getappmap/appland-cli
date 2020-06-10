@@ -92,7 +92,7 @@ func (mapset *MapSet) SetBranch(branch string) *MapSet {
 	return mapset
 }
 
-func (mapset *MapSet) WithGitMetadata(git *metadata.GitMetadata) *MapSet {
+func (mapset *MapSet) WithGitMetadata(git *metadata.Git) *MapSet {
 	if git != nil {
 		mapset.Branch = git.Branch
 		mapset.Commit = git.Commit
