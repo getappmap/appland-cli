@@ -12,7 +12,7 @@ import (
 
 	"github.com/applandinc/appland-cli/internal/config"
 	"github.com/applandinc/appland-cli/internal/metadata"
-	"github.com/applandinc/appland-cli/internal/util"
+	jsonpatch "github.com/evanphx/json-patch"
 )
 
 type HttpError struct {
@@ -102,10 +102,6 @@ func (mapset *MapSet) WithGitMetadata(git *metadata.GitMetadata) *MapSet {
 
 type createScenarioRequest struct {
 	Data string `json:"data,omitempty"`
-}
-
-type scenarioMetadata struct {
-	Name string `json:"name"`
 }
 
 type ScenarioResponse struct {
@@ -202,12 +198,8 @@ func (client *clientImpl) CreateScenario(app string, scenarioData io.Reader) (*S
 		return nil, err
 	}
 
-	appPatch, err := util.BuildPatch("replace", "/metadata", &scenarioMetadata{app})
-	if err != nil {
-		return nil, err
-	}
-
-	scenarioBytes, err = appPatch.Apply(scenarioBytes)
+	appPatch := []byte(fmt.Sprintf(`{"metadata": { "app": "%s" }}`, app))
+	scenarioBytes, err = jsonpatch.MergePatch(scenarioBytes, appPatch)
 	if err != nil {
 		return nil, err
 	}

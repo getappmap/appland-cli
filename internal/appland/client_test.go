@@ -128,7 +128,7 @@ func TestCreateScenario(t *testing.T) {
 		Post("/api/scenarios").
 		MatchHeader("Authorization", "Bearer "+api_key).
 		MatchType("json").
-		JSON(map[string]string{"data": `{"metadata":{"name":"myapp"}}`}).
+		JSON(map[string]string{"data": `{"metadata":{"app":"myapp"}}`}).
 		Reply(201).
 		JSON(map[string]string{"uuid": scenarioUUID})
 
