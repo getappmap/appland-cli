@@ -106,6 +106,10 @@ func NewUploadCommand(options *UploadOptions, metadataProviders []metadata.Provi
 					}
 
 					if gitMetadata, ok := m.(*metadata.Git); ok {
+						if options.branch != "" {
+							gitMetadata.Branch = options.branch
+						}
+
 						git = gitMetadata
 					}
 

@@ -21,7 +21,8 @@ const (
 		"classMap": []
 	}
 	`
-	validAppmapWithMetadata = `{"classMap":[],"events":[],"metadata":{"git":{"annotated_tag":"0.0.0","branch":"master","commit":"76c0ae55fff17ae52ab67a0ff61e1af3d1157555","repository":"repo.git"}}}`
+	validAppmapWithMetadata       = `{"classMap":[],"events":[],"metadata":{"git":{"annotated_tag":"0.0.0","branch":"master","commit":"76c0ae55fff17ae52ab67a0ff61e1af3d1157555","repository":"repo.git"}}}`
+	validAppmapWithBranchOverride = `{"classMap":[],"events":[],"metadata":{"git":{"annotated_tag":"0.0.0","branch":"my-branch","commit":"76c0ae55fff17ae52ab67a0ff61e1af3d1157555","repository":"repo.git"}}}`
 )
 
 type MockGitProvider struct {
@@ -127,5 +128,56 @@ func TestUploadWithGitMetadata(t *testing.T) {
 
 	providers := []metadata.Provider{mockGitProvider}
 	cmd := NewUploadCommand(&UploadOptions{appmapPath: "appmap.yml", dontOpenBrowser: true}, providers)
+	cmd.Run(cmd, []string{fileName})
+}
+
+func TestUploadWithBranchOverride(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	config.SetFileSystem(fs)
+
+	fileName := "example.appmap.json"
+	afero.WriteFile(fs, fileName, []byte(validAppmap), 0755)
+	afero.WriteFile(fs, "appmap.yml", []byte(appmapYml), 0755)
+
+	gitMetadata := &metadata.Git{
+		Commit:     "76c0ae55fff17ae52ab67a0ff61e1af3d1157555",
+		Branch:     "master",
+		Tag:        "0.0.0",
+		Repository: "repo.git",
+	}
+
+	mockGitProvider := &MockGitProvider{}
+	mockGitProvider.
+		On("Get", fileName).
+		Return(gitMetadata, nil)
+
+	mockClient := &MockClient{}
+	mockClient.
+		On("CreateScenario", "myorg/myapp", bytes.NewReader([]byte(validAppmapWithBranchOverride))).
+		Return(&appland.ScenarioResponse{UUID: "uuid"}, nil)
+
+	branchOverride := "my-branch"
+	mockClient.
+		On("CreateMapSet", &appland.MapSet{
+			Application: "myorg/myapp",
+			Scenarios:   []string{"uuid"},
+			Commit:      gitMetadata.Commit,
+			Branch:      branchOverride,
+		}).
+		Return(&appland.CreateMapSetResponse{ID: 1, AppID: 1}, nil)
+
+	mockClient.
+		On("BuildUrl", []interface{}{"applications", "1?mapset=1"}).
+		Return("http://example/applications/1?mapset=1")
+
+	api = mockClient
+
+	providers := []metadata.Provider{mockGitProvider}
+	options := &UploadOptions{
+		appmapPath:      "appmap.yml",
+		dontOpenBrowser: true,
+		branch:          branchOverride,
+	}
+	cmd := NewUploadCommand(options, providers)
 	cmd.Run(cmd, []string{fileName})
 }

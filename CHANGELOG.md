@@ -8,8 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Git metadata collection will now continue and retain information in the event
   of an error.
-- When uploading AppMaps, `branch` and `commit must` both be present or ommitted.
+- When uploading AppMaps, `branch` and `commit` must both be present or ommitted.
   Presence of one without the other will result in failure.
+- Branch override flag provided during upload will be propagated to scenario
+  metadata.
 
 ### Added
 - The `--app`/`-a` flag may be used on upload to override the application
