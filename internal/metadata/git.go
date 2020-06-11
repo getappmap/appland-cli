@@ -3,7 +3,7 @@ package metadata
 import (
 	"fmt"
 
-	util "github.com/applandinc/appland-cli/internal/util"
+	"github.com/applandinc/appland-cli/internal/util"
 	jsonpatch "github.com/evanphx/json-patch"
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -11,7 +11,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/storer"
 )
 
-type gitMetadataBuilder struct {
+type gitBuilder struct {
 	repository *git.Repository
 	commit     *plumbing.Reference
 	branch     plumbing.ReferenceName
@@ -19,7 +19,7 @@ type gitMetadataBuilder struct {
 }
 
 // FindReference currently only resolves references to tags or commits
-func (gm *gitMetadataBuilder) FindReference(hash plumbing.Hash, iter storer.ReferenceIter) (*plumbing.Reference, error) {
+func (gm *gitBuilder) FindReference(hash plumbing.Hash, iter storer.ReferenceIter) (*plumbing.Reference, error) {
 	var refMatch *plumbing.Reference
 
 	err := iter.ForEach(func(ref *plumbing.Reference) error {
@@ -63,11 +63,11 @@ func (gm *gitMetadataBuilder) FindReference(hash plumbing.Hash, iter storer.Refe
 	return refMatch, err
 }
 
-func (gm *gitMetadataBuilder) BranchName() string {
+func (gm *gitBuilder) BranchName() string {
 	return gm.branch.Short()
 }
 
-func (gm *gitMetadataBuilder) CommitHash() string {
+func (gm *gitBuilder) CommitHash() string {
 	if gm.commit == nil {
 		return ""
 	}
@@ -75,11 +75,11 @@ func (gm *gitMetadataBuilder) CommitHash() string {
 	return gm.commit.Hash().String()
 }
 
-func (gm *gitMetadataBuilder) TagName() string {
+func (gm *gitBuilder) TagName() string {
 	return gm.tag.Short()
 }
 
-func (gm *gitMetadataBuilder) RepositoryURL() string {
+func (gm *gitBuilder) RepositoryURL() string {
 	remote, err := gm.repository.Remote("origin")
 	if err != nil {
 		return ""
@@ -93,8 +93,8 @@ func (gm *gitMetadataBuilder) RepositoryURL() string {
 	return ""
 }
 
-func collectGitMetadata(repo *git.Repository) *gitMetadataBuilder {
-	gm := &gitMetadataBuilder{
+func collectGitMetadata(repo *git.Repository) *gitBuilder {
+	gm := &gitBuilder{
 		repository: repo,
 	}
 
@@ -124,8 +124,8 @@ func collectGitMetadata(repo *git.Repository) *gitMetadataBuilder {
 	return gm
 }
 
-func (gm *gitMetadataBuilder) Build() *GitMetadata {
-	return &GitMetadata{
+func (gm *gitBuilder) Build() *Git {
+	return &Git{
 		Repository: gm.RepositoryURL(),
 		Commit:     gm.CommitHash(),
 		Branch:     gm.BranchName(),
@@ -133,7 +133,7 @@ func (gm *gitMetadataBuilder) Build() *GitMetadata {
 	}
 }
 
-type GitMetadata struct {
+type Git struct {
 	Repository string   `json:"repository,omitempty"`
 	Commit     string   `json:"commit,omitempty"`
 	Branch     string   `json:"branch,omitempty"`
@@ -141,26 +141,28 @@ type GitMetadata struct {
 	Tag        string   `json:"annotated_tag,omitempty"`
 }
 
-var metadataCache = map[string]*GitMetadata{}
+type GitProvider struct {
+	cache map[string]*Git
+}
 
-func GetGitMetadata(path string) (*GitMetadata, error) {
-	repositoryInfo, err := util.GetRepository(path)
+func (provider *GitProvider) Get(path string) (Metadata, error) {
+	info, err := util.GetRepository(path)
 	if err != nil {
 		return nil, err
 	}
 
-	existingMetadata := metadataCache[repositoryInfo.Path]
+	existingMetadata := provider.cache[info.Path]
 	if existingMetadata != nil {
 		return existingMetadata, nil
 	}
 
-	gitMetadata := collectGitMetadata(repositoryInfo.Repository).Build()
-	metadataCache[repositoryInfo.Path] = gitMetadata
+	gitMetadata := collectGitMetadata(info.Repository).Build()
+	provider.cache[info.Path] = gitMetadata
 
 	return gitMetadata, nil
 }
 
-func (git *GitMetadata) AsPatch() (*jsonpatch.Patch, error) {
+func (git *Git) AsPatch() (*jsonpatch.Patch, error) {
 	patch, err := util.BuildPatch("replace", "/metadata/git", git)
 	if err != nil {
 		return nil, err
@@ -169,10 +171,11 @@ func (git *GitMetadata) AsPatch() (*jsonpatch.Patch, error) {
 	return &patch, nil
 }
 
-func (git *GitMetadata) IsEmpty() bool {
-	return git.Branch == "" &&
-		git.Commit == "" &&
-		git.Repository == "" &&
-		len(git.Status) == 0 &&
-		git.Tag == ""
+func (git *Git) IsValid() bool {
+	return git != nil &&
+		(git.Branch != "" ||
+			git.Commit != "" ||
+			git.Repository != "" ||
+			len(git.Status) != 0 ||
+			git.Tag != "")
 }

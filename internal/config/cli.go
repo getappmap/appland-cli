@@ -53,7 +53,7 @@ func makeDirty() {
 }
 
 func loadCLIConfig(path string) bool {
-	info, err := getFS().Stat(path)
+	info, err := GetFS().Stat(path)
 	if os.IsNotExist(err) {
 		return false
 	} else if err != nil {
@@ -66,7 +66,7 @@ func loadCLIConfig(path string) bool {
 		return false
 	}
 
-	data, err := afero.ReadFile(getFS(), path)
+	data, err := afero.ReadFile(GetFS(), path)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warn: %s\v", err)
 		return false
@@ -135,7 +135,7 @@ func WriteCLIConfig() error {
 		return err
 	}
 
-	return afero.WriteFile(getFS(), configPath, data, 0600)
+	return afero.WriteFile(GetFS(), configPath, data, 0600)
 }
 
 func GetAPIKey() string {

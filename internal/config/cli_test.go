@@ -18,7 +18,7 @@ contexts:
 `)
 
 func TestWriteCLIConfig(t *testing.T) {
-	setFileSystem(afero.NewMemMapFs())
+	SetFileSystem(afero.NewMemMapFs())
 
 	configPath = ".appland"
 	config = &Config{
@@ -50,7 +50,7 @@ func TestWriteCLIConfig(t *testing.T) {
 }
 
 func TestLoadCLIConfig(t *testing.T) {
-	setFileSystem(afero.NewMemMapFs())
+	SetFileSystem(afero.NewMemMapFs())
 
 	afero.WriteFile(fs, ".appland", sampleConfigData, 0600)
 
@@ -66,7 +66,7 @@ func TestLoadCLIConfig(t *testing.T) {
 }
 
 func TestMakeContext(t *testing.T) {
-	setFileSystem(afero.NewMemMapFs())
+	SetFileSystem(afero.NewMemMapFs())
 
 	afero.WriteFile(fs, ".appland", sampleConfigData, 0600)
 
@@ -81,7 +81,7 @@ func TestMakeContext(t *testing.T) {
 }
 
 func TestDontWriteWithoutDirtyFlag(t *testing.T) {
-	setFileSystem(afero.NewMemMapFs())
+	SetFileSystem(afero.NewMemMapFs())
 	LoadCLIConfig()
 
 	assert.Nil(t, WriteCLIConfig())
@@ -91,7 +91,7 @@ func TestDontWriteWithoutDirtyFlag(t *testing.T) {
 }
 
 func TestWriteWithDirtyFlag(t *testing.T) {
-	setFileSystem(afero.NewMemMapFs())
+	SetFileSystem(afero.NewMemMapFs())
 	LoadCLIConfig()
 
 	context, err := GetCurrentContext()

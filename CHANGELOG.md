@@ -4,10 +4,6 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.5.0]
-### Added
-- `upload` arguments can be files or directories. When a directory is specified, all `*.appmap.json` files in the directory will be loaded into the mapset.
-
 ## [0.4.0]
 ### Changed
 - Git metadata collection will now continue and retain information in the event
@@ -18,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - The `--app`/`-a` flag may be used on upload to override the application
   `name` property from `appmap.yml`.
+- `upload` arguments can be files or directories. When a directory is specified,
+  all `*.appmap.json` files in the directory will be loaded into the mapset.
+- The `-f` flag may be used on upload to specify the path to an `appmap.yml` file
 
 ### Removed
 - Alternate strategies to resolve a branch name have been removed in favor of

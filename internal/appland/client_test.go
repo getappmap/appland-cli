@@ -128,7 +128,7 @@ func TestCreateScenario(t *testing.T) {
 		Post("/api/scenarios").
 		MatchHeader("Authorization", "Bearer "+api_key).
 		MatchType("json").
-		JSON(map[string]string{"data": `{"metadata":{"name":"myapp"}}`}).
+		JSON(map[string]string{"data": `{"metadata":{"app":"myapp"}}`}).
 		Reply(201).
 		JSON(map[string]string{"uuid": scenarioUUID})
 
@@ -141,7 +141,7 @@ func TestCreateScenario(t *testing.T) {
 func TestCreateMapSet(t *testing.T) {
 	defer gock.Off()
 
-	git := &metadata.GitMetadata{
+	git := &metadata.Git{
 		Commit: "76c0ae55fff17ae52ab67a0ff61e1af3d1157555",
 		Branch: "master",
 	}

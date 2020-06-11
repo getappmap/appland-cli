@@ -6,10 +6,10 @@ import (
 
 var fs = afero.NewOsFs()
 
-func setFileSystem(filesystem afero.Fs) {
+func SetFileSystem(filesystem afero.Fs) {
 	fs = filesystem
 }
 
-func getFS() afero.Fs {
+func GetFS() afero.Fs {
 	return fs
 }
