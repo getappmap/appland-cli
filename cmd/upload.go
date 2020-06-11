@@ -173,7 +173,7 @@ func init() {
 	var (
 		options   = &UploadOptions{}
 		providers = []metadata.Provider{
-			&metadata.GitProvider{},
+			metadata.NewGitProvider(),
 		}
 		uploadCmd = NewUploadCommand(options, providers)
 	)

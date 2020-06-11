@@ -145,6 +145,12 @@ type GitProvider struct {
 	cache map[string]*Git
 }
 
+func NewGitProvider() *GitProvider {
+	return &GitProvider{
+		cache: map[string]*Git{},
+	}
+}
+
 func (provider *GitProvider) Get(path string) (Metadata, error) {
 	info, err := util.GetRepository(path)
 	if err != nil {
