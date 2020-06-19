@@ -17,10 +17,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func loadDirectory(dirName string, scenarioFiles []string) []string {
+func loadDirectory(dirName string, scenarioFiles []string) ([]string, error) {
 	files, err := afero.ReadDir(config.GetFS(), dirName)
 	if err != nil {
-		fail(err)
+		return nil, err
 	}
 
 	for _, fi := range files {
@@ -33,7 +33,7 @@ func loadDirectory(dirName string, scenarioFiles []string) []string {
 
 		scenarioFiles = append(scenarioFiles, filepath.Join(dirName, fi.Name()))
 	}
-	return scenarioFiles
+	return scenarioFiles, nil
 }
 
 type UploadOptions struct {
@@ -50,12 +50,12 @@ func NewUploadCommand(options *UploadOptions, metadataProviders []metadata.Provi
 		Use:   "upload [files, directories]",
 		Short: "Upload AppMap files to AppLand",
 		Args:  cobra.MinimumNArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			application := options.application
 			if application == "" {
 				appmapConfig, err := config.LoadAppmapConfig(options.appmapPath, args[0])
 				if err != nil {
-					fail(fmt.Errorf("an appmap.yml should exist in the target repository or the --app / -a flag specified"))
+					return fmt.Errorf("an appmap.yml should exist in the target repository or the --app / -a flag specified")
 				}
 
 				application = appmapConfig.Application
@@ -72,13 +72,15 @@ func NewUploadCommand(options *UploadOptions, metadataProviders []metadata.Provi
 			for _, path := range args {
 				fi, err := config.GetFS().Stat(path)
 				if err != nil {
-					fail(err)
-					return
+					return err
 				}
 
 				switch mode := fi.Mode(); {
 				case mode.IsDir():
-					scenarioFiles = loadDirectory(path, scenarioFiles)
+					scenarioFiles, err = loadDirectory(path, scenarioFiles)
+					if err != nil {
+					  return err
+					}
 				case mode.IsRegular():
 					scenarioFiles = append(scenarioFiles, path)
 				}
@@ -91,12 +93,12 @@ func NewUploadCommand(options *UploadOptions, metadataProviders []metadata.Provi
 			for _, scenarioFile := range scenarioFiles {
 				file, err := config.GetFS().Open(scenarioFile)
 				if err != nil {
-					fail(err)
+					return err
 				}
 
 				data, err := ioutil.ReadAll(file)
 				if err != nil {
-					fail(err)
+					return err
 				}
 
 				for _, provider := range metadataProviders {
@@ -116,19 +118,19 @@ func NewUploadCommand(options *UploadOptions, metadataProviders []metadata.Provi
 					if err == nil && m.IsValid() {
 						patch, err := m.AsPatch()
 						if err != nil {
-							fail(err)
+							return err
 						}
 
 						data, err = patch.Apply(data)
 						if err != nil {
-							fail(err)
+							return err
 						}
 					}
 				}
 
 				resp, err := api.CreateScenario(application, bytes.NewReader(data))
 				if err != nil {
-					fail(err)
+					return err
 				}
 
 				scenarioUUIDs = append(scenarioUUIDs, resp.UUID)
@@ -142,9 +144,9 @@ func NewUploadCommand(options *UploadOptions, metadataProviders []metadata.Provi
 			if commitProvided != branchProvided {
 				progressBar.Clear()
 				if commitProvided {
-					fail(fmt.Errorf("Git branch could not be resolved\nRun again with the --branch or -b flag specified"))
+					return fmt.Errorf("Git branch could not be resolved\nRun again with the --branch or -b flag specified")
 				} else {
-					fail(fmt.Errorf("The --branch or -b flag can only be provided when uploading appmaps from within a Git repository"))
+					return fmt.Errorf("The --branch or -b flag can only be provided when uploading appmaps from within a Git repository")
 				}
 			}
 
@@ -156,7 +158,7 @@ func NewUploadCommand(options *UploadOptions, metadataProviders []metadata.Provi
 
 			res, err := api.CreateMapSet(mapSet)
 			if err != nil {
-				fail(err)
+				return err
 			}
 
 			progressBar.Finish()
@@ -169,6 +171,8 @@ func NewUploadCommand(options *UploadOptions, metadataProviders []metadata.Provi
 			} else {
 				browser.OpenURL(url)
 			}
+
+			return nil
 		},
 	}
 }

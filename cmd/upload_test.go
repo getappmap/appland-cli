@@ -9,6 +9,7 @@ import (
 	"github.com/applandinc/appland-cli/internal/config"
 	"github.com/applandinc/appland-cli/internal/metadata"
 	"github.com/spf13/afero"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -83,7 +84,7 @@ func TestUploadSingleAppMap(t *testing.T) {
 		Return("http://example/applications/1?mapset=1")
 
 	cmd := NewUploadCommand(&UploadOptions{appmapPath: "appmap.yml", dontOpenBrowser: true}, []metadata.Provider{})
-	cmd.Run(cmd, []string{fileName})
+	assert.Nil(t, cmd.RunE(cmd, []string{fileName}))
 }
 
 func TestUploadWithGitMetadata(t *testing.T) {
@@ -128,7 +129,7 @@ func TestUploadWithGitMetadata(t *testing.T) {
 
 	providers := []metadata.Provider{mockGitProvider}
 	cmd := NewUploadCommand(&UploadOptions{appmapPath: "appmap.yml", dontOpenBrowser: true}, providers)
-	cmd.Run(cmd, []string{fileName})
+	assert.Nil(t, cmd.RunE(cmd, []string{fileName}))
 }
 
 func TestUploadWithBranchOverride(t *testing.T) {
@@ -179,5 +180,5 @@ func TestUploadWithBranchOverride(t *testing.T) {
 		branch:          branchOverride,
 	}
 	cmd := NewUploadCommand(options, providers)
-	cmd.Run(cmd, []string{fileName})
+	assert.Nil(t, cmd.RunE(cmd, []string{fileName}))
 }
