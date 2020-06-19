@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -17,7 +18,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func loadDirectory(dirName string, scenarioFiles []string) ([]string, error) {
+const fileSizeLimit = 1024 * 1024 * 2
+
+func checkSize(info os.FileInfo) error {
+	if info.Size() > fileSizeLimit {
+		return fmt.Errorf("file %s size is %d KiB, which is greater than the size limit of %d KiB, use --force if you want to upload it anyway", info.Name(), info.Size()/1024, fileSizeLimit/1024)
+	}
+	return nil
+}
+
+func loadDirectory(options *UploadOptions, dirName string, scenarioFiles []string) ([]string, error) {
 	files, err := afero.ReadDir(config.GetFS(), dirName)
 	if err != nil {
 		return nil, err
@@ -31,6 +41,13 @@ func loadDirectory(dirName string, scenarioFiles []string) ([]string, error) {
 			continue
 		}
 
+		if !options.force {
+			if err := checkSize(fi); err != nil {
+				warn(err)
+				continue
+			}
+		}
+
 		scenarioFiles = append(scenarioFiles, filepath.Join(dirName, fi.Name()))
 	}
 	return scenarioFiles, nil
@@ -41,6 +58,7 @@ type UploadOptions struct {
 	environment     string
 	application     string
 	appmapPath      string
+	force           bool
 	version         string
 	dontOpenBrowser bool
 }
@@ -77,11 +95,17 @@ func NewUploadCommand(options *UploadOptions, metadataProviders []metadata.Provi
 
 				switch mode := fi.Mode(); {
 				case mode.IsDir():
-					scenarioFiles, err = loadDirectory(path, scenarioFiles)
+					scenarioFiles, err = loadDirectory(options, path, scenarioFiles)
 					if err != nil {
-					  return err
+						return err
 					}
 				case mode.IsRegular():
+					if !options.force {
+						if err := checkSize(fi); err != nil {
+							warn(err)
+							continue
+						}
+					}
 					scenarioFiles = append(scenarioFiles, path)
 				}
 			}
@@ -137,6 +161,10 @@ func NewUploadCommand(options *UploadOptions, metadataProviders []metadata.Provi
 				progressBar.Add(1)
 			}
 
+			if len(scenarioFiles) == 0 {
+				return fmt.Errorf("no valid appmaps to upload")
+			}
+
 			// either both commit and branch are specified or both are unspecified
 			// fail otherwise
 			commitProvided := bool(git != nil && git.Commit != "")
@@ -186,11 +214,13 @@ func init() {
 		uploadCmd = NewUploadCommand(options, providers)
 	)
 
-	uploadCmd.Flags().BoolVar(&options.dontOpenBrowser, "no-open", false, "Do not open the browser after a successful upload")
-	uploadCmd.Flags().StringVarP(&options.application, "app", "a", "", "Override the owning application")
-	uploadCmd.Flags().StringVar(&options.appmapPath, "f", "", "Specify an appmap.yml path")
-	uploadCmd.Flags().StringVarP(&options.branch, "branch", "b", "", "Set the MapSet branch if it's otherwise unavailable from Git")
-	uploadCmd.Flags().StringVarP(&options.version, "version", "v", "", "Set the MapSet version")
-	uploadCmd.Flags().StringVarP(&options.environment, "environment", "e", "", "Set the MapSet environment")
+	f := uploadCmd.Flags()
+	f.BoolVar(&options.dontOpenBrowser, "no-open", false, "Do not open the browser after a successful upload")
+	f.BoolVarP(&options.force, "force", "f", false, "Force uploading a file over size limit")
+	f.StringVarP(&options.application, "app", "a", "", "Override the owning application")
+	f.StringVar(&options.appmapPath, "f", "", "Specify an appmap.yml path")
+	f.StringVarP(&options.branch, "branch", "b", "", "Set the MapSet branch if it's otherwise unavailable from Git")
+	f.StringVarP(&options.version, "version", "v", "", "Set the MapSet version")
+	f.StringVarP(&options.environment, "environment", "e", "", "Set the MapSet environment")
 	rootCmd.AddCommand(uploadCmd)
 }

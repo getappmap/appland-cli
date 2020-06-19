@@ -3,6 +3,8 @@ package cmd
 import (
 	"bytes"
 	"io"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/applandinc/appland-cli/internal/appland"
@@ -84,6 +86,67 @@ func TestUploadSingleAppMap(t *testing.T) {
 		Return("http://example/applications/1?mapset=1")
 
 	cmd := NewUploadCommand(&UploadOptions{appmapPath: "appmap.yml", dontOpenBrowser: true}, []metadata.Provider{})
+	assert.Nil(t, cmd.RunE(cmd, []string{fileName}))
+}
+
+func TestUploadTooLargeAppMap(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	config.SetFileSystem(fs)
+
+	fileName := "example.appmap.json"
+	file, err := fs.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+	z1k := []byte(strings.Repeat("0", 1024*2))
+	for i := 0; i < 1025; i++ {
+		file.Write(z1k)
+	}
+	file.Close()
+
+	afero.WriteFile(fs, "appmap.yml", []byte(appmapYml), 0755)
+
+	mockClient := &MockClient{}
+	api = mockClient
+	// no expectations set, client shouldn't be touched because the file should get skipped
+
+	cmd := NewUploadCommand(&UploadOptions{appmapPath: "appmap.yml", dontOpenBrowser: true}, []metadata.Provider{})
+	assert.NotNil(t, cmd.RunE(cmd, []string{fileName}))
+}
+
+func TestUploadForcedTooLargeAppMap(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	config.SetFileSystem(fs)
+
+	fileName := "example.appmap.json"
+	file, err := fs.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+	z1k := []byte(strings.Repeat("0", 1024*2))
+	for i := 0; i < 1025; i++ {
+		file.Write(z1k)
+	}
+	file.Close()
+
+	afero.WriteFile(fs, "appmap.yml", []byte(appmapYml), 0755)
+
+	mockClient := &MockClient{}
+	api = mockClient
+
+	mockClient.
+		On("CreateScenario", "myorg/myapp", mock.AnythingOfType("*bytes.Reader")).
+		Return(&appland.ScenarioResponse{UUID: "uuid"}, nil)
+
+	mockClient.
+		On("CreateMapSet", &appland.MapSet{Application: "myorg/myapp", Scenarios: []string{"uuid"}}).
+		Return(&appland.CreateMapSetResponse{ID: 1, AppID: 1}, nil)
+
+	mockClient.
+		On("BuildUrl", []interface{}{"applications", "1?mapset=1"}).
+		Return("http://example/applications/1?mapset=1")
+
+	cmd := NewUploadCommand(&UploadOptions{appmapPath: "appmap.yml", dontOpenBrowser: true, force: true}, []metadata.Provider{})
 	assert.Nil(t, cmd.RunE(cmd, []string{fileName}))
 }
 
