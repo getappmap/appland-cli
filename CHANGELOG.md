@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1]
+### Fixed
+- Errors unrelated to command line arguments will no longer print the command usage.
+- Upload errors now report the file name being processed at the time the error occurred.
+
 ## [0.5.0]
 ### Changed
 - By default, each uploaded file must be 2MB or less. When a larger file is encountered within a directory that is being uploaded, a warning is printed and the large file is skipped.

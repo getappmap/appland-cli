@@ -79,6 +79,11 @@ func NewUploadCommand(options *UploadOptions, metadataProviders []metadata.Provi
 				application = appmapConfig.Application
 			}
 
+			// If we encounter a usage related error later on we can disable this flag
+			// We don't want to report the usage for errors which are unrelated to
+			// command line arguments
+			cmd.SilenceUsage = true
+
 			// TODO
 			// In the future, perhaps we do something a little more graceful than to
 			// use the git metadata from the last file uploaded. It seems we
@@ -117,12 +122,12 @@ func NewUploadCommand(options *UploadOptions, metadataProviders []metadata.Provi
 			for _, scenarioFile := range scenarioFiles {
 				file, err := config.GetFS().Open(scenarioFile)
 				if err != nil {
-					return err
+					return fmt.Errorf("failed opening %s: %w", scenarioFile, err)
 				}
 
 				data, err := ioutil.ReadAll(file)
 				if err != nil {
-					return err
+					return fmt.Errorf("failed reading %s: %w", scenarioFile, err)
 				}
 
 				for _, provider := range metadataProviders {
@@ -142,19 +147,19 @@ func NewUploadCommand(options *UploadOptions, metadataProviders []metadata.Provi
 					if err == nil && m.IsValid() {
 						patch, err := m.AsPatch()
 						if err != nil {
-							return err
+							return fmt.Errorf("failed patching %s: %w", scenarioFile, err)
 						}
 
 						data, err = patch.Apply(data)
 						if err != nil {
-							return err
+							return fmt.Errorf("failed patching %s: %w", scenarioFile, err)
 						}
 					}
 				}
 
 				resp, err := api.CreateScenario(application, bytes.NewReader(data))
 				if err != nil {
-					return err
+					return fmt.Errorf("failed uploading %s: %w", scenarioFile, err)
 				}
 
 				scenarioUUIDs = append(scenarioUUIDs, resp.UUID)
@@ -170,12 +175,12 @@ func NewUploadCommand(options *UploadOptions, metadataProviders []metadata.Provi
 			commitProvided := bool(git != nil && git.Commit != "")
 			branchProvided := bool((git != nil && git.Branch != "") || options.branch != "")
 			if commitProvided != branchProvided {
+				cmd.SilenceUsage = false
 				progressBar.Clear()
 				if commitProvided {
 					return fmt.Errorf("Git branch could not be resolved\nRun again with the --branch or -b flag specified")
-				} else {
-					return fmt.Errorf("The --branch or -b flag can only be provided when uploading appmaps from within a Git repository")
 				}
+				return fmt.Errorf("The --branch or -b flag can only be provided when uploading appmaps from within a Git repository")
 			}
 
 			mapSet := appland.BuildMapSet(application, scenarioUUIDs).
