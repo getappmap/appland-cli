@@ -57,7 +57,7 @@ func init() {
 			Short: "Stop an existing AppMap recording session",
 			Args:  cobra.ExactArgs(1),
 			Run: func(cmd *cobra.Command, args []string) {
-                url := args[0] + path
+				url := args[0] + path
 				client := &http.Client{}
 
                 request, err := http.NewRequest("DELETE", url, nil)
