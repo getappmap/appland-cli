@@ -54,6 +54,7 @@ func loadDirectory(options *UploadOptions, dirName string, scenarioFiles []strin
 }
 
 type UploadOptions struct {
+	bench           bool
 	branch          string
 	environment     string
 	application     string
@@ -119,17 +120,24 @@ func NewUploadCommand(options *UploadOptions, metadataProviders []metadata.Provi
 			progressBar := progressbar.New(len(scenarioFiles) + 1)
 			progressBar.RenderBlank()
 
+			timing := util.NewTiming("total")
+
 			for _, scenarioFile := range scenarioFiles {
+				fileTiming := timing.Start(scenarioFile)
+
 				file, err := config.GetFS().Open(scenarioFile)
 				if err != nil {
 					return fmt.Errorf("failed opening %s: %w", scenarioFile, err)
 				}
+
+				fileTiming.Start("reading")
 
 				data, err := ioutil.ReadAll(file)
 				if err != nil {
 					return fmt.Errorf("failed reading %s: %w", scenarioFile, err)
 				}
 
+				fileTiming.Start("patching")
 				for _, provider := range metadataProviders {
 					m, err := provider.Get(scenarioFile)
 					if err != nil {
@@ -157,6 +165,7 @@ func NewUploadCommand(options *UploadOptions, metadataProviders []metadata.Provi
 					}
 				}
 
+				fileTiming.Start("uploading")
 				resp, err := api.CreateScenario(application, bytes.NewReader(data))
 				if err != nil {
 					return fmt.Errorf("failed uploading %s: %w", scenarioFile, err)
@@ -164,7 +173,11 @@ func NewUploadCommand(options *UploadOptions, metadataProviders []metadata.Provi
 
 				scenarioUUIDs = append(scenarioUUIDs, resp.UUID)
 				progressBar.Add(1)
+
+				fileTiming.Finish()
 			}
+
+			timing.Finish()
 
 			if len(scenarioFiles) == 0 {
 				return fmt.Errorf("no valid appmaps to upload")
@@ -196,6 +209,11 @@ func NewUploadCommand(options *UploadOptions, metadataProviders []metadata.Provi
 
 			progressBar.Finish()
 
+			if options.bench {
+				fmt.Println()
+				timing.Print()
+			}
+
 			fmt.Printf("\n\nSuccess! %s has been updated with %d scenarios.\n", application, len(scenarioUUIDs))
 
 			url := api.BuildUrl("applications", fmt.Sprintf("%d?mapset=%d", res.AppID, res.ID))
@@ -222,6 +240,7 @@ func init() {
 	f := uploadCmd.Flags()
 	f.BoolVar(&options.dontOpenBrowser, "no-open", false, "Do not open the browser after a successful upload")
 	f.BoolVarP(&options.force, "force", "f", false, "Force uploading a file over size limit")
+	f.BoolVarP(&options.bench, "bench", "", false, "Show a detailed breakdown of time spent uploading")
 	f.StringVarP(&options.application, "app", "a", "", "Override the owning application")
 	f.StringVar(&options.appmapPath, "f", "", "Specify an appmap.yml path")
 	f.StringVarP(&options.branch, "branch", "b", "", "Set the MapSet branch if it's otherwise unavailable from Git")
