@@ -12,6 +12,7 @@ import (
 
 	"github.com/applandinc/appland-cli/internal/config"
 	"github.com/applandinc/appland-cli/internal/metadata"
+	"github.com/applandinc/appland-cli/internal/util"
 	jsonpatch "github.com/evanphx/json-patch"
 )
 
@@ -42,6 +43,7 @@ type Client interface {
 type clientImpl struct {
 	context    *config.Context
 	httpClient *http.Client
+	timing     util.Timing
 }
 
 func (client *clientImpl) Context() *config.Context {
@@ -108,8 +110,34 @@ type ScenarioResponse struct {
 	UUID string
 }
 
+type benchReader struct {
+	io.Reader
+}
+
+func (r benchReader) Close() error {
+	util.Time("waiting")
+	return nil
+}
+
+func newBenchRequest(method, url string, body io.Reader) (*http.Request, error) {
+	req, err := http.NewRequest(method, url, benchReader{body})
+	if err != nil {
+		return nil, err
+	}
+
+	switch v := body.(type) {
+	case *bytes.Buffer:
+		req.ContentLength = int64(v.Len())
+	case *bytes.Reader:
+		req.ContentLength = int64(v.Len())
+	default:
+	}
+
+	return req, nil
+}
+
 func (client *clientImpl) newAuthRequest(method, url string, body io.Reader) (*http.Request, error) {
-	req, err := http.NewRequest(method, url, body)
+	req, err := newBenchRequest(method, url, body)
 	if err != nil {
 		return nil, err
 	}
@@ -193,17 +221,20 @@ func (client *clientImpl) CreateMapSet(mapset *MapSet) (*CreateMapSetResponse, e
 }
 
 func (client *clientImpl) CreateScenario(app string, scenarioData io.Reader) (*ScenarioResponse, error) {
+	util.Time("reading")
 	scenarioBytes, err := ioutil.ReadAll(scenarioData)
 	if err != nil {
 		return nil, err
 	}
 
+	util.Time("patching")
 	appPatch := []byte(fmt.Sprintf(`{"metadata": { "app": "%s" }}`, app))
 	scenarioBytes, err = jsonpatch.MergePatch(scenarioBytes, appPatch)
 	if err != nil {
 		return nil, err
 	}
 
+	util.Time("marshaling")
 	requestObj := &createScenarioRequest{
 		Data: string(scenarioBytes),
 	}
@@ -213,6 +244,7 @@ func (client *clientImpl) CreateScenario(app string, scenarioData io.Reader) (*S
 		return nil, err
 	}
 
+	util.Time("posting")
 	url := client.BuildUrl("api", "scenarios")
 	resp, err := client.post(url, bytes.NewBuffer(data))
 	if err != nil {
@@ -220,6 +252,8 @@ func (client *clientImpl) CreateScenario(app string, scenarioData io.Reader) (*S
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+
 	if err != nil {
 		return nil, err
 	}
