@@ -70,3 +70,11 @@ binary to `/usr/local/bin`.
 ## Testing
 `go test -v ./...` will run all tests. API calls are mocked and do not require a
 live AppLand service.
+
+## Releases
+Releases are automatically published upon creation of a new tag.
+Example:
+```bash
+$ git tag -a $(cat VERSION) -m "Version $(cat VERSION)"
+$ git push origin "$(cat VERSION)"
+```
