@@ -7,13 +7,14 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"os"
 
 	"github.com/applandinc/appland-cli/internal/config"
 	"github.com/applandinc/appland-cli/internal/metadata"
 	"github.com/applandinc/appland-cli/internal/util"
-	jsonpatch "github.com/evanphx/json-patch"
 )
 
 type HttpError struct {
@@ -100,10 +101,6 @@ func (mapset *MapSet) WithGitMetadata(git *metadata.Git) *MapSet {
 		mapset.Commit = git.Commit
 	}
 	return mapset
-}
-
-type createScenarioRequest struct {
-	Data string `json:"data,omitempty"`
 }
 
 type ScenarioResponse struct {
@@ -230,33 +227,65 @@ func (client *clientImpl) CreateMapSet(mapset *MapSet) (*CreateMapSetResponse, e
 	return responseObj, nil
 }
 
+type message struct {
+	bytes.Buffer
+	contentType string
+}
+
+func scenarioMessage(scenarioData io.Reader, metadata []byte) (*message, error) {
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Type", "application/json")
+	h.Set("Content-Disposition", "inline; name=\"metadata\"")
+
+	p, err := w.CreatePart(h)
+	if err != nil {
+		return nil, err
+	}
+	p.Write(metadata)
+
+	h = make(textproto.MIMEHeader)
+	h.Set("Content-Type", "application/json")
+	h.Set("Content-Disposition", "attachment; filename=\"data\"")
+	p, err = w.CreatePart(h)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = io.Copy(p, scenarioData)
+	if err != nil {
+		return nil, err
+	}
+
+	err = w.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	ctype := "multipart/mixed; boundary=\"" + w.Boundary() + "\""
+
+	return &message{buf, ctype}, nil
+}
+
 func (client *clientImpl) CreateScenario(app string, scenarioData io.Reader) (*ScenarioResponse, error) {
-	util.Time("reading")
-	scenarioBytes, err := ioutil.ReadAll(scenarioData)
-	if err != nil {
-		return nil, err
-	}
-
-	util.Time("patching")
-	appPatch := []byte(fmt.Sprintf(`{"metadata": { "app": "%s" }}`, app))
-	scenarioBytes, err = jsonpatch.MergePatch(scenarioBytes, appPatch)
-	if err != nil {
-		return nil, err
-	}
-
-	util.Time("marshaling")
-	requestObj := &createScenarioRequest{
-		Data: string(scenarioBytes),
-	}
-
-	data, err := json.Marshal(requestObj)
+	metadata := []byte(fmt.Sprintf(`{ "app": "%s" }`, app))
+	util.Time("generating multipart")
+	message, err := scenarioMessage(scenarioData, metadata)
 	if err != nil {
 		return nil, err
 	}
 
 	util.Time("posting")
 	url := client.BuildUrl("api", "scenarios")
-	resp, err := client.post(url, bytes.NewBuffer(data))
+	req, err := client.newAuthRequest(http.MethodPost, url, message)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", message.contentType)
+
+	resp, err := client.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}

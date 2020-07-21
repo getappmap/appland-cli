@@ -1,7 +1,15 @@
 package appland
 
 import (
+	"bytes"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"mime"
+	"mime/multipart"
 	"net/http"
+	"net/textproto"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -119,21 +127,112 @@ func TestTestAPIKeyOK(t *testing.T) {
 	})
 }
 
+type multipartPart struct {
+	header textproto.MIMEHeader
+	body   string
+}
+
+type multipartMatcher struct {
+	*gock.MockMatcher
+	parts []multipartPart
+}
+
+func (m *multipartMatcher) matchRequest(req *http.Request) (bool, error) {
+	mediaType, params, err := mime.ParseMediaType(req.Header.Get("Content-Type"))
+	if !(err == nil && strings.HasPrefix(mediaType, "multipart/")) {
+		return false, err
+	}
+
+	body, err := ioutil.ReadAll(req.Body)
+	req.Body = ioutil.NopCloser(bytes.NewReader(body))
+
+	mr := multipart.NewReader(ioutil.NopCloser(bytes.NewReader(body)), params["boundary"])
+	for {
+		p, err := mr.NextPart()
+		if err == io.EOF {
+			return true, nil
+		}
+		if err != nil {
+			return false, err
+		}
+		slurp, err := ioutil.ReadAll(p)
+		if err != nil {
+			return false, err
+		}
+
+		m.parts = append(m.parts, multipartPart{p.Header, string(slurp)})
+	}
+
+	return true, nil
+}
+
+func newMultipartMatcher() *multipartMatcher {
+	m := multipartMatcher{gock.NewBasicMatcher(), nil}
+
+	m.Add(func(req *http.Request, _ *gock.Request) (bool, error) {
+		return m.matchRequest(req)
+	})
+	return &m
+}
+
+// tries to match full string or as a regex
+func fuzzyMatch(needle string, haystack string) bool {
+	if needle == haystack {
+		return true
+	}
+	match, _ := regexp.MatchString(needle, haystack)
+	return match
+}
+
+func headersMatch(needle textproto.MIMEHeader, haystack textproto.MIMEHeader) bool {
+	for k := range needle {
+		if !fuzzyMatch(needle.Get(k), haystack.Get(k)) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (m *multipartMatcher) matchPart(header textproto.MIMEHeader, body string) *multipartMatcher {
+	m.Add(func(req *http.Request, _ *gock.Request) (bool, error) {
+		for _, part := range m.parts {
+			if headersMatch(header, part.header) {
+				return fuzzyMatch(body, part.body), nil
+			}
+		}
+		return false, nil
+	})
+	return m
+}
+
 func TestCreateScenario(t *testing.T) {
 	defer gock.Off()
 
 	scenarioUUID := "100582f6-27ba-4a04-a9d6-a634c742076c"
 
+	matcher := newMultipartMatcher()
+	matcher.matchPart(textproto.MIMEHeader{
+		"Content-Disposition": {"attachment"},
+		"Content-Type":        {"application/json"},
+	}, "{}")
+	matcher.matchPart(textproto.MIMEHeader{
+		"Content-Disposition": {"inline"},
+		"Content-Type":        {"application/json"},
+	}, `{ "app": "myapp" }`)
+
 	gock.New(url).
 		Post("/api/scenarios").
+		SetMatcher(matcher).
 		MatchHeader("Authorization", "Bearer "+api_key).
-		MatchType("json").
-		JSON(map[string]string{"data": `{"metadata":{"app":"myapp"}}`}).
 		Reply(201).
 		JSON(map[string]string{"uuid": scenarioUUID})
 
 	client := MakeTestClient()
 	res, err := client.CreateScenario("myapp", strings.NewReader("{}"))
+	if err != nil {
+		fmt.Errorf("Error: %s", err)
+	}
 	require.Nil(t, err)
 	assert.Equal(t, scenarioUUID, res.UUID)
 }
