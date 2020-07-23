@@ -119,8 +119,18 @@ func (r benchReader) Close() error {
 	return nil
 }
 
+// Note return type of this needs to be the interface.
+// If it's *benchReader and body is nil, a segfault occurs
+// in http for some reason. GO figure.
+func makeBenchReader(body io.Reader) io.Reader {
+	if body == nil {
+		return nil
+	}
+	return &benchReader{body}
+}
+
 func newBenchRequest(method, url string, body io.Reader) (*http.Request, error) {
-	req, err := http.NewRequest(method, url, benchReader{body})
+	req, err := http.NewRequest(method, url, makeBenchReader(body))
 	if err != nil {
 		return nil, err
 	}
