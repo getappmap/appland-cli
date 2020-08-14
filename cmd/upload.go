@@ -136,6 +136,7 @@ func NewUploadCommand(options *UploadOptions, metadataProviders []metadata.Provi
 				if err != nil {
 					return fmt.Errorf("failed reading %s: %w", scenarioFile, err)
 				}
+				file.Close()
 
 				fileTiming.Start("patching")
 				for _, provider := range metadataProviders {

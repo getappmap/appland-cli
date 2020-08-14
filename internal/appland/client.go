@@ -209,6 +209,7 @@ func (client *clientImpl) CreateMapSet(mapset *MapSet) (*CreateMapSetResponse, e
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -289,9 +290,9 @@ func (client *clientImpl) CreateScenario(app string, scenarioData io.Reader) (*S
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
-	resp.Body.Close()
 
 	if err != nil {
 		return nil, err
@@ -315,6 +316,7 @@ func (client *clientImpl) GetScenario(id int) (*ScenarioResponse, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -366,6 +368,7 @@ func (client *clientImpl) Login(login string, password string) error {
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 
 	responseFormat := struct {
 		APIKey string `json:"api_key"`
@@ -395,6 +398,7 @@ func (client *clientImpl) DeleteAPIKey() error {
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		msg, err := ioutil.ReadAll(resp.Body)
