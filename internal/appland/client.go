@@ -217,7 +217,7 @@ func (client *clientImpl) CreateMapSet(mapset *MapSet) (*CreateMapSetResponse, e
 	}
 
 	if resp.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("got status %d:\n%s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("%s, got status %d:\n%s", url, resp.StatusCode, string(body))
 	}
 
 	responseObj := &CreateMapSetResponse{}
@@ -299,7 +299,7 @@ func (client *clientImpl) CreateScenario(app string, scenarioData io.Reader) (*S
 	}
 
 	if resp.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("got status %d:\n%s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("%s, got status %d:\n%s", url, resp.StatusCode, string(body))
 	}
 
 	responseObj := &ScenarioResponse{}
