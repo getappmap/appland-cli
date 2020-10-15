@@ -3,7 +3,9 @@ module github.com/applandinc/appland-cli
 go 1.14
 
 require (
+	github.com/AgentCosmic/xnotify v0.2.4 // indirect
 	github.com/cheggaaa/pb v2.0.7+incompatible
+	github.com/davecgh/go-spew v1.1.1
 	github.com/evanphx/json-patch v4.5.0+incompatible
 	github.com/go-delve/delve v1.4.0 // indirect
 	github.com/go-git/go-billy/v5 v5.0.0

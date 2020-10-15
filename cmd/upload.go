@@ -5,16 +5,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/applandinc/appland-cli/internal/appland"
 	"github.com/applandinc/appland-cli/internal/config"
+	"github.com/applandinc/appland-cli/internal/files"
 	"github.com/applandinc/appland-cli/internal/metadata"
 	"github.com/applandinc/appland-cli/internal/util"
 	"github.com/pkg/browser"
 	progressbar "github.com/schollz/progressbar/v3"
-	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 )
 
@@ -25,32 +23,6 @@ func checkSize(info os.FileInfo) error {
 		return fmt.Errorf("file %s size is %d KiB, which is greater than the size limit of %d KiB, use --force if you want to upload it anyway", info.Name(), info.Size()/1024, fileSizeLimit/1024)
 	}
 	return nil
-}
-
-func loadDirectory(options *UploadOptions, dirName string, scenarioFiles []string) ([]string, error) {
-	files, err := afero.ReadDir(config.GetFS(), dirName)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, fi := range files {
-		if !fi.Mode().IsRegular() {
-			continue
-		}
-		if !strings.HasSuffix(fi.Name(), ".appmap.json") {
-			continue
-		}
-
-		if !options.force {
-			if err := checkSize(fi); err != nil {
-				warn(err)
-				continue
-			}
-		}
-
-		scenarioFiles = append(scenarioFiles, filepath.Join(dirName, fi.Name()))
-	}
-	return scenarioFiles, nil
 }
 
 type UploadOptions struct {
@@ -92,28 +64,19 @@ func NewUploadCommand(options *UploadOptions, metadataProviders []metadata.Provi
 			// single mapset.
 			var git *metadata.Git
 
-			scenarioFiles := make([]string, 0, 10)
-			for _, path := range args {
-				fi, err := config.GetFS().Stat(path)
-				if err != nil {
-					return err
+			validator := func(fi os.FileInfo) bool {
+				if !options.force {
+					if err := checkSize(fi); err != nil {
+						warn(err)
+						return false
+					}
 				}
+				return true
+			}
 
-				switch mode := fi.Mode(); {
-				case mode.IsDir():
-					scenarioFiles, err = loadDirectory(options, path, scenarioFiles)
-					if err != nil {
-						return err
-					}
-				case mode.IsRegular():
-					if !options.force {
-						if err := checkSize(fi); err != nil {
-							warn(err)
-							continue
-						}
-					}
-					scenarioFiles = append(scenarioFiles, path)
-				}
+			scenarioFiles, err := files.FindAppMaps(args, validator)
+			if err != nil {
+				return fmt.Errorf("failed finding AppMaps: %w", err)
 			}
 
 			scenarioUUIDs := make([]string, 0, len(scenarioFiles))
@@ -169,10 +132,10 @@ func NewUploadCommand(options *UploadOptions, metadataProviders []metadata.Provi
 				fileTiming.Start("uploading")
 				resp, err := api.CreateScenario(application, bytes.NewReader(data))
 				if err != nil {
-					return fmt.Errorf("failed uploading %s: %w", scenarioFile, err)
+					fmt.Fprintf(os.Stderr, "warning, failed uploading %s: %s\n", scenarioFile, err)
+				} else {
+					scenarioUUIDs = append(scenarioUUIDs, resp.UUID)
 				}
-
-				scenarioUUIDs = append(scenarioUUIDs, resp.UUID)
 				progressBar.Add(1)
 
 				fileTiming.Finish()
@@ -205,7 +168,7 @@ func NewUploadCommand(options *UploadOptions, metadataProviders []metadata.Provi
 
 			res, err := api.CreateMapSet(mapSet)
 			if err != nil {
-				return err
+				return fmt.Errorf("Failed creating mapset, %w", err)
 			}
 
 			progressBar.Finish()
