@@ -45,7 +45,7 @@ Configure your CI/CD tool to provide the following environment variables at
 runtime. By providing these environment variables, `appland` can authenticate
 without any persistent configuration.
 - `APPLAND_API_KEY`: Generate a new API key from your [account page](https://app.land/user) to populate this value.
-- `APPLAND_URL`: Typically this will always be set to `https://app.land`
+- `APPLAND_URL`: Typically this will be set to `https://app.land`
 
 
 ### Commands
@@ -79,19 +79,19 @@ Select a context as the current context. This is set to a default context upon
 first run.
 
 #### upload
-Upload a mapset of scenario files.
+Create a mapset of scenarios by uploading AppMap files.
 
 `upload [files, dirs]`
-Uploads a list of scenario files or directories to AppLand.
+Uploads a list of AppMap files or directories to AppLand.
 
 #### stats
-Some some statistics about events in scenario files.
+Show some statistics about events in scenarios read from AppMap files.
 
 `stats [files, dirs]`
 
 ## Displaying statistics
 The `stats` subcommand will show some simple statistics about events in a collection of
-app maps:
+AppMaps:
 
 ```
 $ appland stats --help

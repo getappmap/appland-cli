@@ -207,8 +207,8 @@ func init() {
 	f.BoolVarP(&options.bench, "bench", "", false, "Show a detailed breakdown of time spent uploading")
 	f.StringVarP(&options.application, "app", "a", "", "Override the owning application")
 	f.StringVar(&options.appmapPath, "f", "", "Specify an appmap.yml path")
-	f.StringVarP(&options.branch, "branch", "b", "", "Set the MapSet branch if it's otherwise unavailable from Git")
-	f.StringVarP(&options.version, "version", "v", "", "Set the MapSet version")
-	f.StringVarP(&options.environment, "environment", "e", "", "Set the MapSet environment")
+	f.StringVarP(&options.branch, "branch", "b", "", "Set the mapset branch if it's otherwise unavailable from Git")
+	f.StringVarP(&options.version, "version", "v", "", "Set the mapset version")
+	f.StringVarP(&options.environment, "environment", "e", "", "Set the mapset environment")
 	rootCmd.AddCommand(uploadCmd)
 }
