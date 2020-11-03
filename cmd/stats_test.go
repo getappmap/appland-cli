@@ -1,6 +1,11 @@
 package cmd
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/applandinc/appland-cli/internal/config"
@@ -58,8 +63,35 @@ func TestFullAppmap(t *testing.T) {
 
 	stats, count := p.MethodStats(appmap)
 	assert.True(t, count == 60)
-	requestStats := stats["Net::HTTP#request"]
+
+	requestStats := stats["Net::HTTP#request:1468"]
+	j, _ := json.MarshalIndent(requestStats, "", "  ")
+	fmt.Fprintf(os.Stderr, "requestStats %s\n", string(j))
+
 	assert.NotNil(t, requestStats)
-	assert.True(t, requestStats.Calls == 16)
-	assert.True(t, len(requestStats.ParamCounts) == 8)
+	fmt.Fprintf(os.Stderr, "requestStats.Calls %d\n", requestStats.Calls)
+	assert.True(t, requestStats.Calls == 8)
+	fmt.Fprintf(os.Stderr, "len(requestStats.ParamCounts) %d\n", len(requestStats.ParamCounts))
+	assert.True(t, len(requestStats.ParamCounts) == 4)
+}
+
+func TestJSON(t *testing.T) {
+	config.SetFileSystem(afero.NewOsFs())
+	p := StatsProcessor{json: true}
+	appmap, err := p.ReadAppmap("testdata/test.appmap.json")
+	assert.Nil(t, err)
+
+	stats, count := p.MethodStats(appmap)
+	buf := new(bytes.Buffer)
+	p.RenderStats(buf, count, stats)
+	fmt.Fprintf(os.Stderr, "stats %s\n", string(buf.Bytes()))
+
+	// Make sure JSON output of stats is an array of objects.
+	dec := json.NewDecoder(strings.NewReader(string(buf.Bytes())))
+	var out []map[string]interface{}
+	err = dec.Decode(&out)
+	if err != nil {
+		warn(err)
+	}
+	assert.Nil(t, err)
 }

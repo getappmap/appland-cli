@@ -3,9 +3,9 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"sort"
-	"strings"
 
 	"github.com/applandinc/appland-cli/internal/config"
 	"github.com/applandinc/appland-cli/internal/files"
@@ -35,6 +35,8 @@ type event struct {
 	DefinedClass string   `json:"defined_class"`
 	MethodID     string   `json:"method_id"`
 	Static       bool     `json:"static"`
+	Path         string   `json:"path"`
+	Lineno       int      `json:"lineno"`
 	Parameters   []param  `json:"parameters"`
 	SQLQuery     sqlQuery `json:"sql_query"`
 }
@@ -45,6 +47,9 @@ type Appmap struct {
 
 type Stats struct {
 	processor   StatsProcessor
+	Method      string         `json:"method"`
+	Path        string         `json:"path"`
+	Lineno      int            `json:"lineno"`
 	Calls       int            `json:"calls"`
 	NumParams   int            `json:"num_params"`
 	ParamCounts map[string]int `json:"param_counts"`
@@ -58,12 +63,16 @@ type total struct {
 func (t total) MarshalJSON() ([]byte, error) {
 	var v struct {
 		Method      string          `json:"method"`
+		Path        string          `json:"path"`
+		Lineno      int             `json:"lineno"`
 		Calls       int             `json:"calls"`
 		NumParams   *int            `json:"num_params,omitempty"`
 		ParamCounts *map[string]int `json:"param_counts,omitempty"`
 	}
 
-	v.Method = t.Method
+	v.Method = t.Stats.Method
+	v.Path = t.Stats.Path
+	v.Lineno = t.Stats.Lineno
 	v.Calls = t.Stats.Calls
 	if t.processor.params {
 		v.NumParams = &t.Stats.NumParams
@@ -74,9 +83,9 @@ func (t total) MarshalJSON() ([]byte, error) {
 }
 
 func (p StatsProcessor) sortStatsByCount(stats map[string]Stats) []total {
-	var t []total
+	t := []total{}
 	for k, v := range stats {
-		t = append(t, total{k, Stats{processor: p, Calls: v.Calls, NumParams: v.NumParams, ParamCounts: v.ParamCounts}})
+		t = append(t, total{k, Stats{processor: p, Path: v.Path, Method: v.Method, Lineno: v.Lineno, Calls: v.Calls, NumParams: v.NumParams, ParamCounts: v.ParamCounts}})
 	}
 
 	sort.Slice(t, func(i, j int) bool {
@@ -141,7 +150,9 @@ func (p StatsProcessor) MethodStats(appmap Appmap) (map[string]Stats, uint64) {
 		if event.Static {
 			sep = "."
 		}
-		id := strings.Join([]string{event.DefinedClass, sep, event.MethodID}, "")
+		// id := strings.Join([]string{event.DefinedClass, sep, event.MethodID}, "")
+		method := fmt.Sprintf("%s%s%s", event.DefinedClass, sep, event.MethodID)
+		id := fmt.Sprintf("%s:%d", method, event.Lineno)
 		params := event.Parameters
 		var (
 			paramId  string
@@ -160,7 +171,7 @@ func (p StatsProcessor) MethodStats(appmap Appmap) (map[string]Stats, uint64) {
 		}
 
 		if _, ok := stats[id]; !ok {
-			stats[id] = Stats{processor: p, NumParams: len(params), ParamCounts: make(map[string]int)}
+			stats[id] = Stats{processor: p, Method: method, Path: event.Path, Lineno: event.Lineno, NumParams: len(params), ParamCounts: make(map[string]int)}
 		}
 		newStats := stats[id]
 		newStats.Calls++
@@ -172,50 +183,55 @@ func (p StatsProcessor) MethodStats(appmap Appmap) (map[string]Stats, uint64) {
 	return stats, total
 }
 
-func (p StatsProcessor) printStats(msg string, calls uint64, methodStats map[string]Stats) {
+func (p StatsProcessor) RenderStats(w io.Writer, calls uint64, methodStats map[string]Stats) {
 	totals := p.sortStatsByCount(methodStats)
 
-	max := p.limit
-	if len(totals) < max {
-		max = len(totals)
+	max := len(totals)
+	if p.limit > 0 {
+		max = p.limit
+		if len(totals) < max {
+			max = len(totals)
+		}
+		totals = totals[0:max]
 	}
-	totals = totals[0:max]
 
-	if msg != "" {
-		fmt.Print(msg + ": ")
-	}
 	if p.json {
-		j, err := json.MarshalIndent(totals, "", "  ")
+		j, err := json.Marshal(totals)
 		if err == nil {
-			fmt.Print(string(j))
+			fmt.Fprint(w, string(j))
 		} else {
 			warn(err)
 		}
 	} else {
-		fmt.Printf("%d calls, top %d methods\n", calls, max)
+		fmt.Fprintf(w, "%d calls, top %d methods\n", calls, max)
 		for _, t := range totals {
 			key := t.Method
-			distinct := len(methodStats[key].ParamCounts)
-			fmt.Printf("  %s: %d (%d distinct)\n", key, t.Calls, distinct)
+			stat := methodStats[key]
+			distinct := len(stat.ParamCounts)
+			fmt.Fprintf(w, "  %s: %d (%d distinct)\n", key, t.Calls, distinct)
 			if p.params {
-				hasParams := methodStats[key].NumParams > 0
+				hasParams := stat.NumParams > 0
 				if hasParams {
-					fmt.Println("   has parameters")
-					for params, _ := range methodStats[key].ParamCounts {
-						fmt.Printf("    %v\n", params)
+					fmt.Fprintln(w, "   has parameters")
+					for params, _ := range stat.ParamCounts {
+						fmt.Fprintf(w, "    %v\n", params)
 					}
 				} else {
-					fmt.Println("   no parameters")
+					fmt.Fprintln(w, "   no parameters")
 				}
 			}
 		}
 	}
 }
 
+func (p StatsProcessor) printStats(calls uint64, methodStats map[string]Stats) {
+	p.RenderStats(os.Stdout, calls, methodStats)
+}
+
 func NewStatsCommand(p *StatsProcessor) *cobra.Command {
 	return &cobra.Command{
 		Use:   "stats [files, directories]",
-		Short: "Show statistics for AppMaps",
+		Short: "Show statistics for AppMap files",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fnames, err := files.FindAppMaps(args)
@@ -226,10 +242,18 @@ func NewStatsCommand(p *StatsProcessor) *cobra.Command {
 			var (
 				totalMethodCalls   uint64 = 0
 				globalMethodCounts        = make(map[string]Stats)
+				comma                     = ""
 			)
 
 			if p.verbose {
 				fmt.Fprintf(os.Stderr, "Found %d appmap(s)\n", len(fnames))
+			}
+
+			if p.json {
+				fmt.Print("{")
+				if p.files {
+					fmt.Print(`"files":[`)
+				}
 			}
 
 			for _, fname := range fnames {
@@ -247,14 +271,26 @@ func NewStatsCommand(p *StatsProcessor) *cobra.Command {
 				}
 
 				methodStats, calls := p.MethodStats(appmap)
+				if calls == 0 {
+					warn(fmt.Errorf("No events in %s", fname))
+				}
 
 				if p.files {
-					p.printStats(fname, calls, methodStats)
+					if p.json {
+						fmt.Print(comma + `{"name":"` + fname + `","totals":`)
+						comma = ","
+					} else {
+						fmt.Print(fname + ": ")
+					}
+					p.printStats(calls, methodStats)
+					if p.json {
+						fmt.Print("}")
+					}
 				}
 
 				for id, stats := range methodStats {
 					if _, ok := globalMethodCounts[id]; !ok {
-						globalMethodCounts[id] = Stats{processor: *p, NumParams: stats.NumParams, ParamCounts: make(map[string]int)}
+						globalMethodCounts[id] = Stats{processor: *p, Method: stats.Method, Path: stats.Path, Lineno: stats.Lineno, NumParams: stats.NumParams, ParamCounts: make(map[string]int)}
 					}
 					newStats := globalMethodCounts[id]
 					newStats.Calls += stats.Calls
@@ -267,10 +303,21 @@ func NewStatsCommand(p *StatsProcessor) *cobra.Command {
 			}
 
 			if p.files {
-				fmt.Print("\n\n")
+				if p.json {
+					fmt.Print("],")
+				} else {
+					fmt.Print("\n\n")
+				}
 			}
 
-			p.printStats("", totalMethodCalls, globalMethodCounts)
+			if p.json {
+				fmt.Print(`"totals":`)
+			}
+			p.printStats(totalMethodCalls, globalMethodCounts)
+
+			if p.json {
+				fmt.Print("}")
+			}
 
 			return nil
 		},
