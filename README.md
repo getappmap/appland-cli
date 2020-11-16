@@ -1,5 +1,4 @@
 # appland-cli
-[![Build Status](https://travis-ci.com/applandinc/appland.svg?token=oNqy5hPadVE4PUAF9ZWk&branch=master)](https://travis-ci.com/applandinc/appland)
 
 ## Usage
 ### Quickstart
@@ -108,6 +107,9 @@ Flags:
   -p, --params      show distinct parameters for each method
   -v, --verbose     be verbose while processing
 ```
+
+The `stats` subcommand is also useful for [refining the recordings in
+AppMaps](doc/refine-appmaps.md).
 
 ### Some examples
 #### With defaults
@@ -223,11 +225,14 @@ Application_page_with_a_mapset_restores_the_tab_from_location_hash.appmap.json: 
 ...
 ```
 
-## Building
+## Development
+[![Build Status](https://travis-ci.com/applandinc/appland.svg?token=oNqy5hPadVE4PUAF9ZWk&branch=master)](https://travis-ci.com/applandinc/appland)
+
+### Building
 `./bin/build` will build a binary to the `dist` directory. To install, copy the
 binary to `/usr/local/bin`.
 
-## Testing
+### Testing
 `go test -v ./...` will run all tests. API calls are mocked and do not require a
 live AppLand service.
 
