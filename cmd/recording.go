@@ -10,9 +10,6 @@ func init() {
 		recordingCmd = &cobra.Command{
 			Use:   "recording",
 			Short: "Manage AppMap recordings",
-			Run: func(cmd *cobra.Command, args []string) {
-				cmd.Usage()
-			},
 		}
 		recordingStartCmd = &cobra.Command{
 			Use:   "start [url]",
