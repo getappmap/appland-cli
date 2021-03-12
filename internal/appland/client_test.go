@@ -213,11 +213,47 @@ func TestCreateScenario(t *testing.T) {
 
 	matcher := newMultipartMatcher()
 	matcher.matchPart(textproto.MIMEHeader{
-		"Content-Disposition": {"attachment"},
+		"Content-Disposition": {"attachment; filename=\"data\""},
 		"Content-Type":        {"application/json"},
 	}, "{}")
 	matcher.matchPart(textproto.MIMEHeader{
-		"Content-Disposition": {"inline"},
+		"Content-Disposition": {"inline; name=\"metadata\""},
+		"Content-Type":        {"application/json"},
+	}, `{ "app": "myapp" }`)
+	matcher.matchPart(textproto.MIMEHeader{
+		"Content-Disposition": {"inline; name=\"mapset_id\""},
+		"Content-Type":        {"application/json"},
+	}, "123")
+
+	gock.New(url).
+		Post("/api/scenarios").
+		SetMatcher(matcher).
+		MatchHeader("Authorization", "Bearer "+api_key).
+		Reply(201).
+		JSON(map[string]string{"uuid": scenarioUUID})
+
+	client := MakeTestClient()
+	var mapsetId uint64 = 123
+	res, err := client.CreateScenario("myapp", &mapsetId, strings.NewReader("{}"))
+	if err != nil {
+		fmt.Errorf("Error: %s", err)
+	}
+	require.Nil(t, err)
+	assert.Equal(t, scenarioUUID, res.UUID)
+}
+
+func TestCreateScenarioNilMapset(t *testing.T) {
+	defer gock.Off()
+
+	scenarioUUID := "100582f6-27ba-4a04-a9d6-a634c742076c"
+
+	matcher := newMultipartMatcher()
+	matcher.matchPart(textproto.MIMEHeader{
+		"Content-Disposition": {"attachment; filename=\"data\""},
+		"Content-Type":        {"application/json"},
+	}, "{}")
+	matcher.matchPart(textproto.MIMEHeader{
+		"Content-Disposition": {"inline; name=\"metadata\""},
 		"Content-Type":        {"application/json"},
 	}, `{ "app": "myapp" }`)
 
@@ -229,7 +265,7 @@ func TestCreateScenario(t *testing.T) {
 		JSON(map[string]string{"uuid": scenarioUUID})
 
 	client := MakeTestClient()
-	res, err := client.CreateScenario("myapp", strings.NewReader("{}"))
+	res, err := client.CreateScenario("myapp", nil, strings.NewReader("{}"))
 	if err != nil {
 		fmt.Errorf("Error: %s", err)
 	}
