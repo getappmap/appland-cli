@@ -1,8 +1,0 @@
-#!/bin/bash
-set -ex
-
-mkdir -p dist
-
-go build \
-  -o dist/appland \
-  -ldflags "-X 'github.com/applandinc/appland-cli/internal/build.Version=$(cat VERSION)'"

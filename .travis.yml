@@ -2,20 +2,23 @@ language: go
 os: linux
 script:
   - ./bin/test
-  - curl -sfL https://git.io/goreleaser | sh -s -- check
 
 matrix:
   include:
-  - go: 1.14
+    - go: 1.14
+
+before_deploy:
+  - |
+    nvm install --lts \
+      && nvm use --lts \
+      && npm i -g \
+        semantic-release \
+        @semantic-release/exec \
+        @semantic-release/git \
+        @semantic-release/changelog
 
 deploy:
   provider: script
-  script: curl -sL https://git.io/goreleaser | bash
-  skip_cleanup: true
-  github_token: $GITHUB_TOKEN
-  file:
-  - dist/*.tar.gz
-  - dist/checksums.txt
+  script: semantic-release
   on:
-    tags: true
-    condition: $TRAVIS_OS_NAME = linux
+    branch: master
