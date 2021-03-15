@@ -1,3 +1,10 @@
+# 1.0.0 (2021-03-15)
+
+
+### Features
+
+* upload mapsets to existing mapset ([#31](https://github.com/applandinc/appland-cli/issues/31)) ([d8e050e](https://github.com/applandinc/appland-cli/commit/d8e050e35bfe307343102658ccb3eaef1acd3af1))
+
 # Changelog
 All notable changes to this project will be documented in this file.
 
