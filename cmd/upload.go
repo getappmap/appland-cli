@@ -34,6 +34,7 @@ type UploadOptions struct {
 	force           bool
 	version         string
 	dontOpenBrowser bool
+	mapsetId        uint64
 }
 
 func NewUploadCommand(options *UploadOptions, metadataProviders []metadata.Provider) *cobra.Command {
@@ -130,7 +131,7 @@ func NewUploadCommand(options *UploadOptions, metadataProviders []metadata.Provi
 				}
 
 				fileTiming.Start("uploading")
-				resp, err := api.CreateScenario(application, bytes.NewReader(data))
+				resp, err := api.CreateScenario(application, options.mapsetId, bytes.NewReader(data))
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "warning, failed uploading %s: %s\n", scenarioFile, err)
 				} else {
@@ -160,15 +161,24 @@ func NewUploadCommand(options *UploadOptions, metadataProviders []metadata.Provi
 				return fmt.Errorf("The --branch or -b flag can only be provided when uploading appmaps from within a Git repository")
 			}
 
-			mapSet := appland.BuildMapSet(application, scenarioUUIDs).
-				SetVersion(options.version).
-				SetEnvironment(options.environment).
-				WithGitMetadata(git).
-				SetBranch(options.branch)
+			if options.mapsetId == 0 {
+				mapSet := appland.BuildMapSet(application, scenarioUUIDs).
+					SetVersion(options.version).
+					SetEnvironment(options.environment).
+					WithGitMetadata(git).
+					SetBranch(options.branch)
 
-			res, err := api.CreateMapSet(mapSet)
-			if err != nil {
-				return fmt.Errorf("Failed creating mapset, %w", err)
+				res, err := api.CreateMapSet(mapSet)
+				if err != nil {
+					return fmt.Errorf("Failed creating mapset, %w", err)
+				}
+
+				url := api.BuildUrl("applications", fmt.Sprintf("%d?mapset=%d", res.AppID, res.ID))
+				if options.dontOpenBrowser {
+					fmt.Println(url)
+				} else {
+					browser.OpenURL(url)
+				}
 			}
 
 			progressBar.Finish()
@@ -178,14 +188,7 @@ func NewUploadCommand(options *UploadOptions, metadataProviders []metadata.Provi
 				timing.Print()
 			}
 
-			fmt.Printf("\n\nSuccess! %s has been updated with %d scenarios.\n", application, len(scenarioUUIDs))
-
-			url := api.BuildUrl("applications", fmt.Sprintf("%d?mapset=%d", res.AppID, res.ID))
-			if options.dontOpenBrowser {
-				fmt.Println(url)
-			} else {
-				browser.OpenURL(url)
-			}
+			fmt.Printf("\n\nSuccess! %s has been updated with %d AppMaps.\n", application, len(scenarioUUIDs))
 
 			return nil
 		},
@@ -210,5 +213,7 @@ func init() {
 	f.StringVarP(&options.branch, "branch", "b", "", "Set the mapset branch if it's otherwise unavailable from Git")
 	f.StringVarP(&options.version, "version", "v", "", "Set the mapset version")
 	f.StringVarP(&options.environment, "environment", "e", "", "Set the mapset environment")
+	f.Uint64VarP(&options.mapsetId, "mapset", "m", 0, "An existing mapset ID to append appmaps to")
+
 	rootCmd.AddCommand(uploadCmd)
 }

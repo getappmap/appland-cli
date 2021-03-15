@@ -45,8 +45,8 @@ func (m *MockClient) CreateMapSet(mapset *appland.MapSet) (*appland.CreateMapSet
 	return resp, args.Error(1)
 }
 
-func (m *MockClient) CreateScenario(app string, scenarioData io.Reader) (*appland.ScenarioResponse, error) {
-	args := m.Called(app, scenarioData)
+func (m *MockClient) CreateScenario(app string, mapsetId uint64, scenarioData io.Reader) (*appland.ScenarioResponse, error) {
+	args := m.Called(app, mapsetId, scenarioData)
 	resp, _ := args.Get(0).(*appland.ScenarioResponse)
 	return resp, args.Error(1)
 }
@@ -74,7 +74,7 @@ func TestUploadSingleAppMap(t *testing.T) {
 	api = mockClient
 
 	mockClient.
-		On("CreateScenario", "myorg/myapp", bytes.NewReader([]byte(validAppmap))).
+		On("CreateScenario", "myorg/myapp", (uint64)(0), bytes.NewReader([]byte(validAppmap))).
 		Return(&appland.ScenarioResponse{UUID: "uuid"}, nil)
 
 	mockClient.
@@ -135,7 +135,7 @@ func TestUploadForcedTooLargeAppMap(t *testing.T) {
 	api = mockClient
 
 	mockClient.
-		On("CreateScenario", "myorg/myapp", mock.AnythingOfType("*bytes.Reader")).
+		On("CreateScenario", "myorg/myapp", (uint64)(0), mock.AnythingOfType("*bytes.Reader")).
 		Return(&appland.ScenarioResponse{UUID: "uuid"}, nil)
 
 	mockClient.
@@ -172,7 +172,7 @@ func TestUploadWithGitMetadata(t *testing.T) {
 
 	mockClient := &MockClient{}
 	mockClient.
-		On("CreateScenario", "myorg/myapp", bytes.NewReader([]byte(validAppmapWithMetadata))).
+		On("CreateScenario", "myorg/myapp", (uint64)(0), bytes.NewReader([]byte(validAppmapWithMetadata))).
 		Return(&appland.ScenarioResponse{UUID: "uuid"}, nil)
 
 	mockClient.
@@ -217,7 +217,7 @@ func TestUploadWithBranchOverride(t *testing.T) {
 
 	mockClient := &MockClient{}
 	mockClient.
-		On("CreateScenario", "myorg/myapp", bytes.NewReader([]byte(validAppmapWithBranchOverride))).
+		On("CreateScenario", "myorg/myapp", (uint64)(0), bytes.NewReader([]byte(validAppmapWithBranchOverride))).
 		Return(&appland.ScenarioResponse{UUID: "uuid"}, nil)
 
 	branchOverride := "my-branch"
