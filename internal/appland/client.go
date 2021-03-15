@@ -35,7 +35,7 @@ type Client interface {
 	BuildUrl(paths ...interface{}) string
 	Context() *config.Context
 	CreateMapSet(mapset *MapSet) (*CreateMapSetResponse, error)
-	CreateScenario(org string, mapsetId *uint64, scenarioData io.Reader) (*ScenarioResponse, error)
+	CreateScenario(org string, mapsetId uint64, scenarioData io.Reader) (*ScenarioResponse, error)
 	GetScenario(id int) (*ScenarioResponse, error)
 	DeleteAPIKey() error
 	Login(login string, password string) error
@@ -234,7 +234,7 @@ type message struct {
 	contentType string
 }
 
-func scenarioMessage(scenarioData io.Reader, metadata []byte, mapsetId *uint64) (*message, error) {
+func scenarioMessage(scenarioData io.Reader, metadata []byte, mapsetId uint64) (*message, error) {
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)
 
@@ -248,7 +248,7 @@ func scenarioMessage(scenarioData io.Reader, metadata []byte, mapsetId *uint64) 
 	}
 	p.Write(metadata)
 
-	if mapsetId != nil {
+	if mapsetId > 0 {
 		h = make(textproto.MIMEHeader)
 		h.Set("Content-Type", "application/json")
 		h.Set("Content-Disposition", "inline; name=\"mapset_id\"")
@@ -257,7 +257,7 @@ func scenarioMessage(scenarioData io.Reader, metadata []byte, mapsetId *uint64) 
 		if err != nil {
 			return nil, err
 		}
-		p.Write([]byte(strconv.FormatUint(*mapsetId, 10)))
+		p.Write([]byte(strconv.FormatUint(mapsetId, 10)))
 	}
 
 	h = make(textproto.MIMEHeader)
@@ -283,7 +283,7 @@ func scenarioMessage(scenarioData io.Reader, metadata []byte, mapsetId *uint64) 
 	return &message{buf, ctype}, nil
 }
 
-func (client *clientImpl) CreateScenario(app string, mapsetId *uint64, scenarioData io.Reader) (*ScenarioResponse, error) {
+func (client *clientImpl) CreateScenario(app string, mapsetId uint64, scenarioData io.Reader) (*ScenarioResponse, error) {
 	metadata := []byte(fmt.Sprintf(`{ "app": "%s" }`, app))
 	util.Time("generating multipart")
 	message, err := scenarioMessage(scenarioData, metadata, mapsetId)

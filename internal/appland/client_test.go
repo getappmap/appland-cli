@@ -233,8 +233,7 @@ func TestCreateScenario(t *testing.T) {
 		JSON(map[string]string{"uuid": scenarioUUID})
 
 	client := MakeTestClient()
-	var mapsetId uint64 = 123
-	res, err := client.CreateScenario("myapp", &mapsetId, strings.NewReader("{}"))
+	res, err := client.CreateScenario("myapp", 123, strings.NewReader("{}"))
 	if err != nil {
 		fmt.Errorf("Error: %s", err)
 	}
@@ -265,7 +264,7 @@ func TestCreateScenarioNilMapset(t *testing.T) {
 		JSON(map[string]string{"uuid": scenarioUUID})
 
 	client := MakeTestClient()
-	res, err := client.CreateScenario("myapp", nil, strings.NewReader("{}"))
+	res, err := client.CreateScenario("myapp", 0, strings.NewReader("{}"))
 	if err != nil {
 		fmt.Errorf("Error: %s", err)
 	}

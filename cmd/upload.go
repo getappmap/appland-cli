@@ -86,11 +86,6 @@ func NewUploadCommand(options *UploadOptions, metadataProviders []metadata.Provi
 
 			timing := util.NewTiming("total")
 
-			var mapsetId *uint64 = nil
-			if (cmd.Flags().Changed("mapset")) {
-				mapsetId = &options.mapsetId
-			}
-
 			for _, scenarioFile := range scenarioFiles {
 				fileTiming := timing.Start(scenarioFile)
 
@@ -136,7 +131,7 @@ func NewUploadCommand(options *UploadOptions, metadataProviders []metadata.Provi
 				}
 
 				fileTiming.Start("uploading")
-				resp, err := api.CreateScenario(application, mapsetId, bytes.NewReader(data))
+				resp, err := api.CreateScenario(application, options.mapsetId, bytes.NewReader(data))
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "warning, failed uploading %s: %s\n", scenarioFile, err)
 				} else {
@@ -165,8 +160,8 @@ func NewUploadCommand(options *UploadOptions, metadataProviders []metadata.Provi
 				}
 				return fmt.Errorf("The --branch or -b flag can only be provided when uploading appmaps from within a Git repository")
 			}
-			
-			if mapsetId == nil {
+
+			if options.mapsetId == 0 {
 				mapSet := appland.BuildMapSet(application, scenarioUUIDs).
 					SetVersion(options.version).
 					SetEnvironment(options.environment).
