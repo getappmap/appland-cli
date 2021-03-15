@@ -37,5 +37,9 @@ changelog:
   sort: asc
   filters:
     exclude:
-    - '^docs:'
-    - '^test:'
+    - '^docs\s*(\(.*\))?\s*:'
+    - '^test\s*(\(.*\))?\s*:'
+    - '^chore\s*(\(.*\))?\s*:'
+    - '^build\s*(\(.*\))?\s*:'
+    - '^ci\s*(\(.*\))?\s*:'
+    - '\[skip ci\]$'
